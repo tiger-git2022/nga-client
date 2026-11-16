@@ -38,7 +38,22 @@ public class TopicConvertFactory {
         // 去掉 jdata 字段，值可能包含转义引号、\x5C 等非法转义导致解析失败，且该字段无实际用途
         js = js.replaceAll("(?s)\"jdata\"\\s*:\\s*(\"\"|\"\\{.*?\\}\")\\s*,?\\s*", "");
 
-        TopicListBean topicListBean = JSON.parseObject(js, TopicListBean.class);
+        TopicListBean topicListBean;
+        try {
+            topicListBean = JSON.parseObject(js, TopicListBean.class);
+        } catch (Exception e) {
+            // 搜索结果的标题/摘要里可能带有 \xHH 这种 JS 转义，JSON 不认，转成 unicode 转义再解析一次
+            NLog.e(TAG, "parse topic list failed, retry after fixing escapes: " + e.getMessage());
+            try {
+                topicListBean = JSON.parseObject(fixJsEscapes(js), TopicListBean.class);
+            } catch (Exception e2) {
+                NLog.e(TAG, "can not parse :\n" + js);
+                return null;
+            }
+        }
+        if (topicListBean == null || topicListBean.getData() == null) {
+            return null;
+        }
 
         try {
             TopicListInfo listInfo = new TopicListInfo();
@@ -54,6 +69,13 @@ public class TopicConvertFactory {
             return null;
         }
 
+    }
+
+    private static final java.util.regex.Pattern JS_HEX_ESCAPE =
+            java.util.regex.Pattern.compile("(?<!\\\\)((?:\\\\\\\\)*)\\\\x([0-9a-fA-F]{2})");
+
+    static String fixJsEscapes(String js) {
+        return JS_HEX_ESCAPE.matcher(js).replaceAll("$1\\\\u00$2");
     }
 
     private void filter(TopicListInfo data) {

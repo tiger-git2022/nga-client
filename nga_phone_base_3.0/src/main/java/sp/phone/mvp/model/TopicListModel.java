@@ -140,7 +140,7 @@ public class TopicListModel extends BaseModel implements TopicListContract.Model
                         if (result != null) {
                             return result;
                         } else {
-                            throw new Exception(ErrorConvertFactory.getErrorMessage(js));
+                            throw new Exception(getLoadErrorMessage(js));
                         }
                     }
                 })
@@ -174,7 +174,7 @@ public class TopicListModel extends BaseModel implements TopicListContract.Model
                         if (result != null) {
                             return result;
                         } else {
-                            throw new Exception(ErrorConvertFactory.getErrorMessage(js));
+                            throw new Exception(getLoadErrorMessage(js));
                         }
                     }
                 })
@@ -215,6 +215,15 @@ public class TopicListModel extends BaseModel implements TopicListContract.Model
             callBack.onError(null);
 
         });
+    }
+
+    private static String getLoadErrorMessage(String js) {
+        String message = ErrorConvertFactory.getErrorMessage(js);
+        if (message == null || message.isEmpty()) {
+            NLog.e("TopicListModel", "unknown topic list response: " + (js.length() > 500 ? js.substring(0, 500) : js));
+            return "数据解析失败，请下拉刷新重试";
+        }
+        return message;
     }
 
     private String getUrl(int page, TopicListParam requestInfo) {
