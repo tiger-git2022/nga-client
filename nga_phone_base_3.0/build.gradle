@@ -11,6 +11,18 @@ def static getDate() {
     return formattedDate
 }
 
+// Fork（tiger-git2022）：自用版 custom 构建类型
+// -PngaSigningFile=xxx.properties 指定签名（storeFile/storePassword/keyAlias/keyPassword），不传时用 debug 签名（CI 检查用）
+// -Ptiger.buildNumber=N 由发布工作流传入：versionName 加 "-tN"，versionCode = 上游 versionCode * 1000 + N
+def loadCustomSigning() {
+    def path = project.findProperty('ngaSigningFile')
+    def props = new Properties()
+    if (path != null && new File(path).exists()) {
+        new File(path).withInputStream { props.load(it) }
+    }
+    return props
+}
+
 def isJenkins() {
     return project.hasProperty('IS_JENKINS') && IS_JENKINS == 'true'
 }
@@ -19,7 +31,18 @@ android {
     namespace "gov.anzong.androidnga"
     compileSdk project.compileSdkVersion
 
+    def customSigning = loadCustomSigning()
+    def tigerBuildNumber = (project.findProperty('tiger.buildNumber') ?: '0').toString().toInteger()
+
     signingConfigs {
+        if (!customSigning.isEmpty()) {
+            custom {
+                storeFile file(customSigning.getProperty('storeFile').replaceFirst('^/([a-zA-Z])/', '$1:/'))
+                storePassword customSigning.getProperty('storePassword')
+                keyAlias customSigning.getProperty('keyAlias')
+                keyPassword customSigning.getProperty('keyPassword')
+            }
+        }
         signingConfig {
             if (isJenkins()) {
                 storeFile file('../../android19910914.keystore')
@@ -40,6 +63,8 @@ android {
 
         versionCode project.appVersionCode
         versionName project.appVersionName
+        // Fork：只有 custom 构建类型检查本仓库的新版本
+        buildConfigField "String", "UPDATE_REPO", "\"\""
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -76,6 +101,15 @@ android {
             zipAlignEnabled true
             signingConfig signingConfigs.signingConfig
         }
+        // Fork：自用版，和官方版并存安装，带本地阅读进度、应用内更新检查等改动
+        custom {
+            initWith release
+            applicationIdSuffix '.custom'
+            versionNameSuffix "-t${tigerBuildNumber}"
+            signingConfig customSigning.isEmpty() ? signingConfigs.debug : signingConfigs.custom
+            buildConfigField "String", "UPDATE_REPO", "\"tiger-git2022/nga-client\""
+            matchingFallbacks = ['release']
+        }
         debug {
             applicationIdSuffix '.debug'
             debuggable true
@@ -103,6 +137,10 @@ android {
         variant.outputs.all {
             if (outputFile != null && outputFileName.endsWith('.apk') && variant.buildType.name == "release") {
                 outputFileName = "nga_phone_${defaultConfig.versionName}_${getDate()}.apk"
+            }
+            if (variant.buildType.name == "custom") {
+                versionCodeOverride = project.appVersionCode * 1000 + tigerBuildNumber
+                outputFileName = "nga-custom-v${variant.versionName}.apk"
             }
         }
     }

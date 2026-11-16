@@ -51,6 +51,11 @@ public class AboutActivity extends MaterialAboutActivity {
                 .subText(BuildConfig.VERSION_NAME)
                 .icon(R.drawable.ic_about)
                 .setOnClickAction(() -> {
+                    // Fork：自用版点版本号检查更新
+                    if (sp.phone.common.ForkUpdateChecker.isEnabled()) {
+                        sp.phone.common.ForkUpdateChecker.check(AboutActivity.this, true);
+                        return;
+                    }
                     try {
                         String url = "market://details?id=" + getPackageName();
                         Intent intent = new Intent("android.intent.action.VIEW");

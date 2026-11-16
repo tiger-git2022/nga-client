@@ -212,6 +212,8 @@ public abstract class BaseActivity extends AppCompatActivity {
             long time = PreferenceUtils.getData(PreferenceKey.KEY_CHECK_UPGRADE_TIME, 0L);
             if (System.currentTimeMillis() - time > 1000 * 60 * 60 * 24) {
                 CloudServerManager.checkUpgrade();
+                // Fork：自用版检查本仓库 GitHub Releases 的新版本
+                sp.phone.common.ForkUpdateChecker.check(this, false);
                 PreferenceUtils.putData(PreferenceKey.KEY_CHECK_UPGRADE_TIME, System.currentTimeMillis());
             }
         }
