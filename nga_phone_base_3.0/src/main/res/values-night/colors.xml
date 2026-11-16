@@ -25,4 +25,5 @@
     <color name="title_blue">#ff3181f4</color>
     <color name="title_red">#ffc63e37</color>
 
+    <color name="read_progress_color">#D9A066</color>
 </resources>

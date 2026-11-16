@@ -153,9 +153,14 @@ public class ArticleListPresenter extends BasePresenter<ArticleListFragment, Art
     }
 
     private void showWithWebView() {
+        // Fork：网页模式也打开当前页，并带上阅读进度要回到的楼层和列表里的回复数
+        int floor = mRequestParam.pid == 0 && mRequestParam.authorId == 0
+                ? ForumWebFragment.restoreFloor(mRequestParam.tid, Math.max(mRequestParam.page, 1)) : -1;
         ARouterUtils.build(ARouterConstants.ACTIVITY_FRAGMENT_TEMPLATE)
                 .withString("url", getCurrentUrl())
                 .withString("title", mRequestParam.title)
+                .withInt(ForumWebFragment.ARG_SCROLL_FLOOR, floor)
+                .withInt(ForumWebFragment.ARG_ROWS, ForumWebFragment.topicRows(mRequestParam.topicInfo))
                 .withString("fragment", ForumWebFragment.class.getName())
                 .navigation(mBaseView.getContext());
         mBaseView.finish();
@@ -168,6 +173,9 @@ public class ArticleListPresenter extends BasePresenter<ArticleListFragment, Art
             builder.append("pid=").append(mRequestParam.pid);
         } else {
             builder.append("tid=").append(mRequestParam.tid);
+            if (mRequestParam.page > 1) {
+                builder.append("&page=").append(mRequestParam.page);
+            }
         }
         return builder.toString();
     }

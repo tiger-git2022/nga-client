@@ -15,6 +15,19 @@ public class ArticleShareViewModel extends ViewModel {
 
     private MutableLiveData<Integer> mCachePage = new MutableLiveData<>();
 
+    /** 打开帖子时要恢复的阅读位置，页码为 0 表示没有待恢复的位置 */
+    public int restorePage;
+
+    public int restoreIndex;
+
+    public int restoreOffset;
+
+    public void clearRestore() {
+        restorePage = 0;
+        restoreIndex = 0;
+        restoreOffset = 0;
+    }
+
     public MutableLiveData<Integer> getReplyCount() {
         return mReplyCount;
     }

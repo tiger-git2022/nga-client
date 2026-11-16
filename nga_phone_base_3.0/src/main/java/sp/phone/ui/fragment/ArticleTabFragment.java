@@ -23,6 +23,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.viewpager.widget.ViewPager;
 
 import com.getbase.floatingactionbutton.FloatingActionsMenu;
+import com.google.android.material.snackbar.Snackbar;
 import com.justwen.androidnga.base.activity.ARouterConstants;
 import com.trello.rxlifecycle2.android.FragmentEvent;
 
@@ -35,6 +36,8 @@ import gov.anzong.androidnga.activity.fragment.ForumWebFragment;
 import gov.anzong.androidnga.base.util.ShareUtils;
 import gov.anzong.androidnga.base.widget.TabLayoutEx;
 import sp.phone.common.PhoneConfiguration;
+import sp.phone.common.ReadProgress;
+import sp.phone.common.ReadProgressManager;
 import sp.phone.common.UserManagerImpl;
 import sp.phone.mvp.viewmodel.ArticleShareViewModel;
 import sp.phone.param.ArticleListParam;
@@ -74,6 +77,8 @@ public class ArticleTabFragment extends BaseRxFragment {
 
     private int mReplyCount;
 
+    private long mPausedAt;
+
     private ScrollAwareFamBehavior mBehavior;
 
     @Override
@@ -112,7 +117,19 @@ public class ArticleTabFragment extends BaseRxFragment {
         ButterKnife.bind(this, view);
         updateFloatingMenu();
         mPagerAdapter = new ArticlePagerAdapter(getChildFragmentManager(), mRequestParam);
+        ReadProgress progress = savedInstanceState == null ? getRestorableProgress() : null;
+        if (progress != null) {
+            int pageCount = Math.max(progress.getPage(), (int) Math.ceil(progress.getRows() / 20.0f));
+            mPagerAdapter.setCount(pageCount);
+            ArticleShareViewModel viewModel = getActivityViewModel();
+            viewModel.restorePage = progress.getPage();
+            viewModel.restoreIndex = progress.getIndex();
+            viewModel.restoreOffset = progress.getOffset();
+        }
         mViewPager.setAdapter(mPagerAdapter);
+        if (progress != null) {
+            mViewPager.setCurrentItem(progress.getPage() - 1, false);
+        }
         mViewPager.addOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
             @Override
             public void onPageSelected(int position) {
@@ -121,14 +138,55 @@ public class ArticleTabFragment extends BaseRxFragment {
             }
         });
 
-        mTabLayout.setTabOnScreenLimit(1);
+        if (progress != null) {
+            int count = mPagerAdapter.getCount();
+            mTabLayout.setTabOnScreenLimit(count <= 5 ? count : 0);
+        } else {
+            mTabLayout.setTabOnScreenLimit(1);
+        }
         mTabLayout.setUpWithViewPager(mViewPager);
+        if (progress != null) {
+            showResumeHint(view, progress);
+        }
 
         mFam.getAddFloatingActionButton().setOnLongClickListener(v -> {
             mBehavior.animateOut(mFam);
             return true;
         });
         super.onViewCreated(view, savedInstanceState);
+    }
+
+    /**
+     * 正常打开整个帖子（不是跳到某一楼、只看某人或搜索结果）并且有上次的阅读记录时，返回要恢复的进度
+     */
+    @Nullable
+    private ReadProgress getRestorableProgress() {
+        if (mRequestParam == null || mRequestParam.tid == 0 || mRequestParam.pid != 0
+                || mRequestParam.authorId != 0 || mRequestParam.searchPost != 0) {
+            return null;
+        }
+        ReadProgress progress = ReadProgressManager.get(mRequestParam.tid);
+        if (progress == null || (progress.getPage() <= 1 && progress.getIndex() == 0 && progress.getOffset() >= 0)) {
+            return null;
+        }
+        return progress;
+    }
+
+    private void showResumeHint(View view, ReadProgress progress) {
+        String text = "已回到上次位置：第 " + progress.getPage() + " 页";
+        if (progress.getReadFloor() > 0) {
+            text += "，之前读到 " + progress.getReadFloor() + " 楼";
+        }
+        Snackbar.make(view, text, Snackbar.LENGTH_LONG)
+                .setAction("从头看", v -> {
+                    getActivityViewModel().restorePage = 1;
+                    getActivityViewModel().restoreIndex = 0;
+                    getActivityViewModel().restoreOffset = 0;
+                    mViewPager.setCurrentItem(0, false);
+                    // 第 1 页已经加载过时不会再走 setData，直接通知它回到顶部
+                    RxBus.getInstance().post(new RxEvent(RxEvent.EVENT_ARTICLE_GO_FLOOR, 0, 0));
+                })
+                .show();
     }
 
     private void updateFloatingMenu() {
@@ -148,6 +206,40 @@ public class ArticleTabFragment extends BaseRxFragment {
         }
         registerRxBus(FragmentEvent.PAUSE);
         super.onResume();
+        applyNewerProgress();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        mPausedAt = System.currentTimeMillis();
+    }
+
+    /**
+     * 离开期间（比如用网页模式看了这个帖子）阅读进度有更新时，跳到新的位置，而不是用当前页覆盖它
+     */
+    private void applyNewerProgress() {
+        long pausedAt = mPausedAt;
+        mPausedAt = 0;
+        if (pausedAt == 0 || mPagerAdapter == null || mRequestParam == null || mRequestParam.pid != 0
+                || mRequestParam.authorId != 0 || mRequestParam.searchPost != 0) {
+            return;
+        }
+        ReadProgress progress = ReadProgressManager.get(mRequestParam.tid);
+        if (progress == null || progress.getUpdateTime() <= pausedAt) {
+            return;
+        }
+        ArticleShareViewModel viewModel = getActivityViewModel();
+        viewModel.restorePage = progress.getPage();
+        viewModel.restoreIndex = progress.getIndex();
+        viewModel.restoreOffset = 0;
+        if (mPagerAdapter.getCount() < progress.getPage()) {
+            mPagerAdapter.setCount(progress.getPage());
+            mTabLayout.notifyDataSetChanged();
+        }
+        mViewPager.setCurrentItem(progress.getPage() - 1, false);
+        // 目标页已经加载过时不会再走 setData，这里直接通知它滚动
+        RxBus.getInstance().post(new RxEvent(RxEvent.EVENT_ARTICLE_GO_FLOOR, progress.getPage() - 1, progress.getIndex()));
     }
 
     @OnClick(R.id.fab_post)
@@ -202,6 +294,9 @@ public class ArticleTabFragment extends BaseRxFragment {
                 ARouterUtils.build(ARouterConstants.ACTIVITY_FRAGMENT_TEMPLATE)
                         .withString("url", getCurrentUrl())
                         .withString("title", mRequestParam.title)
+                        .withInt(ForumWebFragment.ARG_ROWS, Math.max(mReplyCount, ForumWebFragment.topicRows(mRequestParam.topicInfo)))
+                        .withInt(ForumWebFragment.ARG_SCROLL_FLOOR, mRequestParam.pid == 0
+                                ? ForumWebFragment.restoreFloor(mRequestParam.tid, mViewPager.getCurrentItem() + 1) : -1)
                         .withString("fragment", ForumWebFragment.class.getName())
                         .navigation(getContext());
                 break;
@@ -222,6 +317,10 @@ public class ArticleTabFragment extends BaseRxFragment {
             builder.append("pid=").append(mRequestParam.pid);
         } else {
             builder.append("tid=").append(mRequestParam.tid);
+            int page = mViewPager.getCurrentItem() + 1;
+            if (page > 1) {
+                builder.append("&page=").append(page);
+            }
         }
         return builder.toString();
     }

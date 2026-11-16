@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.alibaba.android.arouter.launcher.ARouter;
@@ -23,6 +24,7 @@ import gov.anzong.androidnga.activity.BaseActivity;
 import gov.anzong.androidnga.arouter.ARouterConstants;
 import io.reactivex.annotations.NonNull;
 import sp.phone.common.PhoneConfiguration;
+import sp.phone.common.ReadProgressManager;
 import sp.phone.common.User;
 import sp.phone.common.UserManagerImpl;
 import com.client.androidnga.core.data.model.ThreadInfo;
@@ -63,6 +65,8 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
     private ArticleListAdapter mArticleAdapter;
 
     protected ArticleListParam mRequestParam;
+
+    private ThreadInfo mThreadInfo;
 
     private OnTopicMenuItemClickListener mMenuItemClickListener = new OnTopicMenuItemClickListener() {
 
@@ -246,7 +250,15 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
         if (rxEvent.what == RxEvent.EVENT_ARTICLE_GO_FLOOR
                 && rxEvent.arg + 1 == mRequestParam.page
                 && rxEvent.obj != null) {
-            mListView.scrollToPosition((Integer) rxEvent.obj);
+            LinearLayoutManager lm = (LinearLayoutManager) mListView.getLayoutManager();
+            if (lm != null) {
+                lm.scrollToPositionWithOffset((Integer) rxEvent.obj, 0);
+            }
+            ArticleShareViewModel viewModel = getActivityViewModelProvider().get(ArticleShareViewModel.class);
+            if (mThreadInfo != null && viewModel.restorePage == mRequestParam.page) {
+                viewModel.clearRestore();
+                mListView.post(this::saveReadProgress);
+            }
         }
     }
 
@@ -270,6 +282,14 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
         mArticleAdapter.setOpposeListener(mOpposeListener);
         mArticleAdapter.setMenuTogglerListener(mMenuTogglerListener);
         mListView.setLayoutManager(new LinearLayoutManager(getContext()));
+        mListView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@androidx.annotation.NonNull RecyclerView recyclerView, int newState) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    saveReadProgress();
+                }
+            }
+        });
         mListView.setItemViewCacheSize(20);
         mListView.setAdapter(mArticleAdapter);
         mListView.setEmptyView(view.findViewById(R.id.empty_view));
@@ -289,6 +309,65 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
         super.onViewCreated(view, savedInstanceState);
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (mListView != null) {
+            mListView.post(this::saveReadProgress);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        saveReadProgress();
+        super.onPause();
+    }
+
+    private boolean isProgressTrackable() {
+        return mRequestParam != null
+                && mRequestParam.tid != 0
+                && mRequestParam.pid == 0
+                && mRequestParam.authorId == 0
+                && mRequestParam.searchPost == 0;
+    }
+
+    /**
+     * 记录当前页的阅读位置，只记录当前显示的那一页（ViewPager 里只有当前页处于 resumed 状态）
+     */
+    private void saveReadProgress() {
+        if (!isResumed() || !isProgressTrackable() || mListView == null || mThreadInfo == null
+                || mThreadInfo.postInfoList.isEmpty()) {
+            return;
+        }
+        // 还有待恢复的位置时不记录，免得把要回到的位置覆盖掉
+        if (getActivityViewModelProvider().get(ArticleShareViewModel.class).restorePage == mRequestParam.page) {
+            return;
+        }
+        LinearLayoutManager lm = (LinearLayoutManager) mListView.getLayoutManager();
+        if (lm == null) {
+            return;
+        }
+        int first = lm.findFirstVisibleItemPosition();
+        int last = lm.findLastVisibleItemPosition();
+        int size = mThreadInfo.postInfoList.size();
+        if (first < 0 || first >= size) {
+            return;
+        }
+        if (last < first || last >= size) {
+            last = first;
+        }
+        View firstView = lm.findViewByPosition(first);
+        int offset = firstView == null ? 0 : firstView.getTop() - mListView.getPaddingTop();
+        ThreadPostInfo lastRow = mThreadInfo.postInfoList.get(last);
+        int lastFloor = lastRow == null ? 0 : lastRow.lou;
+        String subject = mRequestParam.title;
+        if (subject == null && mThreadInfo.pageInfo != null) {
+            subject = mThreadInfo.pageInfo.getSubject();
+        }
+        ReadProgressManager.save(mRequestParam.tid, mRequestParam.page, first, offset, lastFloor,
+                mThreadInfo.totalRows, subject);
+    }
+
     public void loadPage() {
         mPresenter.loadPage(mRequestParam);
     }
@@ -303,8 +382,20 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
             getActivity().setTitle(data.pageInfo.getSubject());
         }
 
+        mThreadInfo = data;
         mArticleAdapter.setData(data);
         mArticleAdapter.notifyDataSetChanged();
+
+        if (data != null && viewModel.restorePage != 0 && viewModel.restorePage == mRequestParam.page) {
+            int index = Math.min(viewModel.restoreIndex, Math.max(0, mArticleAdapter.getItemCount() - 1));
+            int offset = viewModel.restoreOffset;
+            viewModel.clearRestore();
+            LinearLayoutManager lm = (LinearLayoutManager) mListView.getLayoutManager();
+            if (lm != null) {
+                lm.scrollToPositionWithOffset(index, offset);
+            }
+        }
+        mListView.post(this::saveReadProgress);
 
     }
 
