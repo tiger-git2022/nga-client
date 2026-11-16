@@ -1,0 +1,214 @@
+# Fork (tiger-git2022/nga-client): build the signed custom APK and publish it as a GitHub Release.
+#
+# Version scheme: tag/versionName "v<upstream appVersionName>-t<N>", versionCode
+# "<upstream appVersionCode> * 1000 + N". N starts at 1 for every upstream version and increases with
+# each release of it, so versionCode always increases. The in-app update check compares the
+# version_code field of update.json (sp/phone/common/ForkUpdateChecker.kt).
+name: Tiger Release
+
+on:
+  push:
+    branches:
+      - custom
+    paths-ignore:
+      - '**.md'
+      - '.github/ISSUE_TEMPLATE/**'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Release even if this commit has already been released'
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Branch to release'
+        type: string
+        default: custom
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: ubuntu-26.04
+    # One release at a time, so build numbers never collide
+    concurrency:
+      group: tiger-release
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Compute version
+        id: version
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+
+          existing=$(git tag --points-at HEAD --list 'v*-t*' | head -n 1)
+          if [ -n "$existing" ] && [ "$FORCE" != "true" ]; then
+            echo "Commit $(git rev-parse --short HEAD) was already released as $existing, skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          upstream_name=$(sed -nE "s/^[[:space:]]*appVersionName = '([^']+)'.*/\1/p" build.gradle | head -n 1)
+          upstream_code=$(sed -nE 's/^[[:space:]]*appVersionCode = ([0-9]+).*/\1/p' build.gradle | head -n 1)
+          if [ -z "$upstream_name" ] || [ -z "$upstream_code" ]; then
+            echo "::error::Could not read appVersionName/appVersionCode from build.gradle"
+            exit 1
+          fi
+
+          last=$(git tag --list "v${upstream_name}-t*" | sed -E "s/^v.*-t//" | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)
+          build=$(( ${last:-0} + 1 ))
+          version_name="${upstream_name}-t${build}"
+          version_code=$(( upstream_code * 1000 + build ))
+          previous=$(git describe --tags --abbrev=0 --match 'v*-t*' HEAD 2>/dev/null || true)
+
+          {
+            echo "skip=false"
+            echo "upstream_name=$upstream_name"
+            echo "build=$build"
+            echo "version_name=$version_name"
+            echo "version_code=$version_code"
+            echo "tag=v$version_name"
+            echo "previous=$previous"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing v$version_name (versionCode $version_code), previous release: ${previous:-none}"
+
+      - name: Set up JDK
+        if: steps.version.outputs.skip != 'true'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          java-version-file: .github/.java-version
+          distribution: temurin
+
+      - name: Set up Gradle
+        if: steps.version.outputs.skip != 'true'
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Decode signing keystore
+        if: steps.version.outputs.skip != 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Secret KEYSTORE_BASE64 is not set"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          # Read by nga_phone_base_3.0/build.gradle through -PngaSigningFile
+          {
+            echo "storeFile=$RUNNER_TEMP/release.keystore"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > "$RUNNER_TEMP/signing.properties"
+
+          hash=$(keytool -exportcert -alias "$KEY_ALIAS" -keystore "$RUNNER_TEMP/release.keystore" \
+            -storepass "$KEYSTORE_PASSWORD" | openssl sha1 -binary | openssl base64 -A)
+          echo "SIGNATURE_HASH=$hash" >> "$GITHUB_ENV"
+
+      - name: Build signed custom APK
+        if: steps.version.outputs.skip != 'true'
+        run: >-
+          ./gradlew :nga_phone_base_3.0:assembleCustom
+          -PngaSigningFile=${{ runner.temp }}/signing.properties
+          -Ptiger.buildNumber=${{ steps.version.outputs.build }}
+
+      - name: Collect APK
+        if: steps.version.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          out=nga_phone_base_3.0/build/outputs/apk/custom
+          mkdir -p dist
+          mv "$out/nga-custom-$TAG.apk" "dist/nga-custom-$TAG.apk"
+          ls -l dist
+
+          # Make sure the APK is signed with the release key
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
+          "$apksigner" verify --print-certs "dist/nga-custom-$TAG.apk" | tee "$RUNNER_TEMP/certs.txt"
+          if grep -q "CN=Android Debug" "$RUNNER_TEMP/certs.txt"; then
+            echo "::error::APK is signed with the debug key"
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/signing.properties" "$RUNNER_TEMP/release.keystore"
+
+      # Notes are Chinese first, then English: commit / PR titles are written as "中文 / English".
+      # The in-app update dialog shows the part before the "---" line.
+      - name: Write release notes
+        if: steps.version.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+          UPSTREAM: ${{ steps.version.outputs.upstream_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          if [ -n "$PREVIOUS" ]; then
+            changes=$(git log --first-parent --pretty='- %s (%h)' "$PREVIOUS..HEAD")
+          else
+            changes=$(git log --first-parent --pretty='- %s (%h)' -n 20 HEAD)
+          fi
+          cat > release-notes.md <<EOF
+          基于上游 [NGA 客户端开源版 $UPSTREAM](https://github.com/Justwen/NGA-CLIENT-VER-OPEN-SOURCE/tree/master_release)，附加本地阅读进度、搜索错误提示修复、网页模式登录和进度记录。
+
+          ### 本次更新
+          ${changes:-- 无代码改动}
+
+          ### 下载
+          \`nga-custom-$TAG.apk\`（arm64）
+
+          包名 \`gov.anzong.androidnga.custom\`，应用名「NGA客户端(自用)」，versionCode $VERSION_CODE，可与官方版同时安装。
+
+          ---
+
+          Based on upstream [NGA open-source client $UPSTREAM](https://github.com/Justwen/NGA-CLIENT-VER-OPEN-SOURCE/tree/master_release), with local reading progress, readable search errors, and login + progress in web view mode. The changes are listed above.
+
+          **Download:** \`nga-custom-$TAG.apk\` (arm64). Package \`gov.anzong.androidnga.custom\`, versionCode $VERSION_CODE, installs beside the official app.
+
+          <details><summary>签名信息 / Signing info</summary>
+
+          - 签名证书 SHA-1（Base64）/ Signing certificate SHA-1 (Base64)：\`$SIGNATURE_HASH\`
+
+          </details>
+          EOF
+          cat release-notes.md
+
+      - name: Publish GitHub Release
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" dist/*.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$(git rev-parse HEAD)" \
+            --title "NGA 客户端(自用) $TAG" \
+            --notes-file release-notes.md \
+            --latest
+
+          # The app reads this from /releases/latest/download/update.json, served like any release
+          # download, without api.github.com's limit of 60 requests an hour per IP.
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq "{
+            tag_name, body, html_url, version_code: $VERSION_CODE,
+            assets: [.assets[] | select(.name | endswith(\".apk\")) | {name, browser_download_url}]
+          }" > update.json
+          cat update.json
+          gh release upload "$TAG" update.json --repo "$GITHUB_REPOSITORY" --clobber

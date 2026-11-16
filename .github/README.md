@@ -1,0 +1,96 @@
+# NGA 客户端(自用)（tiger-git2022/nga-client）
+
+<p align="center">
+  <a href="https://github.com/tiger-git2022/nga-client/releases/latest"><img src="https://img.shields.io/github/v/release/tiger-git2022/nga-client?style=for-the-badge&label=%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88%20%2F%20Download&color=2ea44f" alt="下载最新版 / Download latest"></a>
+</p>
+
+**[⬇ 下载最新 APK / Download the latest APK](https://github.com/tiger-git2022/nga-client/releases/latest)**：`nga-custom-v…apk`（arm64）。
+
+[中文](#中文) | [English](#english) | [上游说明 / Upstream README](../README.md)
+
+## 中文
+
+基于 [Justwen/NGA-CLIENT-VER-OPEN-SOURCE](https://github.com/Justwen/NGA-CLIENT-VER-OPEN-SOURCE)（NGA 客户端开源版）的个人分支，`custom` 分支在上游 `master_release` 的基础上增加：
+
+- **本地阅读进度**
+  - 每个帖子记住上次停在第几页、哪个位置，以及最远读到第几楼。数据只存在手机本地（`read_progress.db`），最多 5000 个帖子，超出时删掉最久没看的。
+  - 再次打开帖子直接回到上次的位置，底部提示「已回到上次位置：第 N 页，之前读到 M 楼」，可点「从头看」。
+  - 帖子列表（板块、搜索结果、浏览历史）里看过的帖子，标题下显示「读到 M 楼 · 新增 K 楼」。新增楼数 = 列表里的回复数 + 1 − 上次阅读时的总楼数。
+  - 打开指定楼层（pid）、只看某人、搜索回复时不记录，也不跳转。
+  - 原版打开帖子总是从第 1 页开始，这里一并修正。
+- **网页模式**（帖子无法用原生界面显示时自动切换，或点标题栏的地球图标）
+  - 修复网页显示「未登录」：登录在 `ngabbs.com` 完成，cookie 只在那个域名下，而网页打开的是 `bbs.nga.cn`，服务器下发的游客 uid 还会覆盖登录 uid。现在打开网页前会把当前账号的 cookie 写到各个 NGA 域名的父域上。
+  - 网页模式也记录阅读进度（按页面里每楼的 `a[name="l楼层"]` 锚点和 `__PAGE`），打开时直接到上次的页码和楼层；从网页返回原生页面时，跳到网页里看到的位置。
+- **搜索错误提示**：NGA 搜不到结果、权限不足等情况会返回 4xx 状态码（比如板块内搜不到时是 HTTP 410），原版只显示「HTTP 410 Gone」。现在显示服务器正文里的真实原因，比如「没有符合条件的结果」。搜索结果解析也加了容错（`\xHH` 转义）。
+- **应用内更新**：启动时（每天最多一次）检查本仓库的最新 Release；「关于」页点版本号可以手动检查。
+- 补上上游漏提交的 `lib_base_ui_compose/.../compose3/theme/Color.kt`，否则编译不过。
+
+`master`、`master_release` 分支与上游保持一致，不在上面开发。
+
+### 下载
+
+<https://github.com/tiger-git2022/nga-client/releases/latest>
+
+包名 `gov.anzong.androidnga.custom`，应用名「NGA客户端(自用)」，可以和官方版（`gov.anzong.androidnga`）同时安装。两者数据不互通，第一次需要重新登录。
+
+### 版本号
+
+| | 规则 | 例子 |
+|---|---|---|
+| tag / versionName | `v<上游 appVersionName>-t<N>` | `v5.1.1-t3` |
+| versionCode | `<上游 appVersionCode> × 1000 + N` | `5011003` |
+
+N 对每个上游版本从 1 开始，每次发布加 1，所以 versionCode 一定递增。
+根目录 `build.gradle` 里上游的 `appVersionName`/`appVersionCode` 不要改，构建号由 CI 通过 `-Ptiger.buildNumber=N` 传入。
+
+### GitHub Actions
+
+| 工作流 | 触发 | 作用 |
+|---|---|---|
+| `tiger-ci.yml` | 合并到 `custom` 的 PR、手动 | 编译 custom 版（debug 签名），上传 APK |
+| `tiger-release.yml` | 推送到 `custom`、手动、被同步工作流调用 | 编译签名 APK，发布到 Releases，并上传应用内更新用的 `update.json`。同一个提交只发布一次（手动运行可勾选 force） |
+| `tiger-sync-upstream.yml` | 每 6 小时、手动 | 把上游 `master_release` 分支合并进 `custom`；无冲突且编译通过就推送并发布，否则开 Issue |
+
+上游作者不是每个版本都发 GitHub Release（Play 上已是 5.1.x，Release 还停在 5.0.2），所以同步跟的是 `master_release` 分支，而不是 Release tag。
+上游原有的 `build.yml`、`gradle-wrapper-validation.yml` 已在 `custom` 中删除，同步时会自动丢弃上游对 `.github/workflows` 的改动。
+
+需要的仓库 Secrets：
+
+- `KEYSTORE_BASE64`、`KEYSTORE_PASSWORD`、`KEY_ALIAS`、`KEY_PASSWORD`：release 签名（和其他几个仓库共用同一把密钥）。
+- `SYNC_TOKEN`（可选）：有 Contents 和 Workflows 写权限的 fine-grained PAT。上游提交改过工作流文件时，GitHub 不允许用 `GITHUB_TOKEN` 推送；没有这个 secret 时，同步会失败并开 Issue 说明。
+
+### 本地编译
+
+需要 JDK 17（用 JDK 21 时 Kotlin 和 Java 的目标版本不一致，会报 `Inconsistent JVM-target compatibility`）。
+
+```sh
+# debug 版（包名 gov.anzong.androidnga.debug）
+./gradlew :nga_phone_base_3.0:assembleDebug
+# 自用版，用自己的签名
+./gradlew :nga_phone_base_3.0:assembleCustom -PngaSigningFile=/path/to/signing.properties
+```
+
+`signing.properties` 里写 `storeFile`、`storePassword`、`keyAlias`、`keyPassword`；不传 `-PngaSigningFile` 时用 debug 签名。
+
+### 代码位置
+
+改动尽量放在独立文件里，对上游文件的修改集中在下面这些地方（新改动请加 `Fork` 注释）：
+
+- `nga_phone_base_3.0/src/main/java/sp/phone/common/ReadProgressManager.kt`：阅读进度存储
+- `.../sp/phone/ui/fragment/ArticleTabFragment.java`、`ArticleListFragment.java`：记录与恢复位置
+- `.../sp/phone/ui/adapter/TopicListAdapter.java`、`res/layout/list_topic.xml`：列表里的进度行
+- `.../gov/anzong/androidnga/activity/fragment/ForumWebFragment.kt`：网页模式的登录 cookie 和进度
+- `.../sp/phone/mvp/model/convert/ErrorConvertFactory.java`、`TopicConvertFactory.java`：错误提示与解析容错
+- `.../sp/phone/common/ForkUpdateChecker.kt`：应用内更新
+
+## English
+
+A personal fork of [Justwen/NGA-CLIENT-VER-OPEN-SOURCE](https://github.com/Justwen/NGA-CLIENT-VER-OPEN-SOURCE). The `custom` branch adds, on top of upstream `master_release`:
+
+- **Local reading progress**: the page, position and furthest floor of every thread are stored on the device (up to 5000 threads). Opening a thread returns to where you left off ("从头看" goes back to the start), and topic lists show "读到 M 楼 · 新增 K 楼" (read up to floor M, K new replies since). Links to a single post, author-only views and reply search are not tracked. Upstream always opened page 1; that is fixed too.
+- **Web view mode**: fixes "未登录" (not logged in) — the login cookie lived only on `ngabbs.com` and a guest uid on the parent domain overrode it. Web view mode also records and restores progress, and the native view jumps to the position reached in the web view.
+- **Readable search errors**: NGA answers "no results" and similar with 4xx codes (HTTP 410 for an empty in-board search); the server's message is shown instead of "HTTP 410 Gone". Parsing tolerates `\xHH` escapes.
+- **In-app update check** against this repository's releases (at launch, at most daily; manual from the About page).
+- Restores `compose3/theme/Color.kt`, missing upstream.
+
+Package `gov.anzong.androidnga.custom`, installs beside the official app. Versions are `v<upstream>-t<N>`, versionCode `<upstream code> × 1000 + N`. Releases are built by `tiger-release.yml` on every push to `custom`; `tiger-sync-upstream.yml` merges upstream `master_release` every 6 hours and releases when it builds, or opens an issue. Secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`, optional `SYNC_TOKEN`. Build locally with JDK 17.
