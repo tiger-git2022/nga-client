@@ -186,6 +186,11 @@ public class ArticleTabFragment extends BaseRxFragment {
                     // 第 1 页已经加载过时不会再走 setData，直接通知它回到顶部
                     RxBus.getInstance().post(new RxEvent(RxEvent.EVENT_ARTICLE_GO_FLOOR, 0, 0));
                 })
+                // 主题里的文字颜色是深色，和 Snackbar 的深色背景混在一起看不清，这里固定配色
+                .setBackgroundTint(0xFF323232)
+                .setTextColor(0xFFFFFFFF)
+                .setActionTextColor(0xFFFFB74D)
+                .setDuration(4000)
                 .show();
     }
 

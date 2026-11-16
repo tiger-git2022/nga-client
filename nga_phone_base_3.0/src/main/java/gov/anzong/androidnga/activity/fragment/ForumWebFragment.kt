@@ -256,7 +256,7 @@ class ForumWebFragment : WebViewFragment() {
     maxFloor=Math.max(maxFloor,f);
     var r=anchors[i].getBoundingClientRect();
     if(r.width==0&&r.height==0&&r.top==0) continue;
-    if(r.top<window.innerHeight){
+    if(r.top<window.innerHeight*0.9){
       last=Math.max(last,f);
       if(r.top<=window.innerHeight*0.3) first=Math.max(first,f);
     }

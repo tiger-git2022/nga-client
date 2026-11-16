@@ -24,6 +24,7 @@ import gov.anzong.androidnga.activity.BaseActivity;
 import gov.anzong.androidnga.arouter.ARouterConstants;
 import io.reactivex.annotations.NonNull;
 import sp.phone.common.PhoneConfiguration;
+import sp.phone.common.ReadProgress;
 import sp.phone.common.ReadProgressManager;
 import sp.phone.common.User;
 import sp.phone.common.UserManagerImpl;
@@ -257,7 +258,7 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
             ArticleShareViewModel viewModel = getActivityViewModelProvider().get(ArticleShareViewModel.class);
             if (mThreadInfo != null && viewModel.restorePage == mRequestParam.page) {
                 viewModel.clearRestore();
-                mListView.post(this::saveReadProgress);
+                mListView.post(() -> saveReadProgress(false));
             }
         }
     }
@@ -286,7 +287,7 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
             @Override
             public void onScrollStateChanged(@androidx.annotation.NonNull RecyclerView recyclerView, int newState) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    saveReadProgress();
+                    saveReadProgress(true);
                 }
             }
         });
@@ -313,13 +314,13 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
     public void onResume() {
         super.onResume();
         if (mListView != null) {
-            mListView.post(this::saveReadProgress);
+            mListView.post(() -> saveReadProgress(false));
         }
     }
 
     @Override
     public void onPause() {
-        saveReadProgress();
+        saveReadProgress(true);
         super.onPause();
     }
 
@@ -332,9 +333,12 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
     }
 
     /**
-     * 记录当前页的阅读位置，只记录当前显示的那一页（ViewPager 里只有当前页处于 resumed 状态）
+     * 记录当前页的阅读位置，只记录当前显示的那一页（ViewPager 里只有当前页处于 resumed 状态）。
+     *
+     * @param measure 是否测量屏幕上看到的最后一楼。刚加载完时楼层里的网页和图片还没撑开高度，
+     *                整页都会被算成可见，这时只记录位置，读到的楼层取锚点那一楼。
      */
-    private void saveReadProgress() {
+    private void saveReadProgress(boolean measure) {
         if (!isResumed() || !isProgressTrackable() || mListView == null || mThreadInfo == null
                 || mThreadInfo.postInfoList.isEmpty()) {
             return;
@@ -347,24 +351,59 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
         if (lm == null) {
             return;
         }
+        int size = mThreadInfo.postInfoList.size();
         int first = lm.findFirstVisibleItemPosition();
         int last = lm.findLastVisibleItemPosition();
-        int size = mThreadInfo.postInfoList.size();
         if (first < 0 || first >= size) {
             return;
         }
         if (last < first || last >= size) {
             last = first;
         }
-        View firstView = lm.findViewByPosition(first);
-        int offset = firstView == null ? 0 : firstView.getTop() - mListView.getPaddingTop();
-        ThreadPostInfo lastRow = mThreadInfo.postInfoList.get(last);
-        int lastFloor = lastRow == null ? 0 : lastRow.lou;
+        int top = mListView.getPaddingTop();
+        int height = mListView.getHeight() - mListView.getPaddingTop() - mListView.getPaddingBottom();
+        if (height <= 0) {
+            return;
+        }
+
+        // 锚点：优先用楼头露在屏幕上半部分的那一楼，偏移量不为负。恢复时上面的楼高度可能还没撑开，
+        // 用负偏移会滑过头（比如图片还没加载时回到了下一两楼）
+        int anchor = first;
+        View anchorView = lm.findViewByPosition(first);
+        int offset = anchorView == null ? 0 : anchorView.getTop() - top;
+        if (offset < 0 && first + 1 <= last) {
+            View next = lm.findViewByPosition(first + 1);
+            if (next != null && next.getTop() - top < height * 0.6f) {
+                anchor = first + 1;
+                offset = next.getTop() - top;
+            }
+        }
+
+        // 读到的楼层：楼头已经进入屏幕的最后一楼（露出不到 1/10 屏的不算）
+        int floorIndex = anchor;
+        if (measure) {
+            for (int i = last; i > anchor; i--) {
+                View v = lm.findViewByPosition(i);
+                if (v != null && v.getTop() - top < height * 0.9f) {
+                    floorIndex = i;
+                    break;
+                }
+            }
+        }
+        ThreadPostInfo row = mThreadInfo.postInfoList.get(floorIndex);
+        int floor = row == null ? 0 : row.lou;
+        if (!measure) {
+            // 没测量时只知道锚点那一楼，同一页上不要把之前测出来的楼层改小
+            ReadProgress old = ReadProgressManager.get(mRequestParam.tid);
+            if (old != null && old.getPage() == mRequestParam.page) {
+                floor = Math.max(floor, old.getReadFloor());
+            }
+        }
         String subject = mRequestParam.title;
         if (subject == null && mThreadInfo.pageInfo != null) {
             subject = mThreadInfo.pageInfo.getSubject();
         }
-        ReadProgressManager.save(mRequestParam.tid, mRequestParam.page, first, offset, lastFloor,
+        ReadProgressManager.save(mRequestParam.tid, mRequestParam.page, anchor, offset, floor,
                 mThreadInfo.totalRows, subject);
     }
 
@@ -395,7 +434,7 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
                 lm.scrollToPositionWithOffset(index, offset);
             }
         }
-        mListView.post(this::saveReadProgress);
+        mListView.post(() -> saveReadProgress(false));
 
     }
 

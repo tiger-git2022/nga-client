@@ -20,7 +20,7 @@ data class ReadProgress(
     val index: Int,
     /** 该条目顶部相对列表顶部的偏移（像素） */
     val offset: Int,
-    /** 读到过的最大楼层号（主楼为 0） */
+    /** 最后一次离开时看到的楼层号（主楼为 0） */
     val readFloor: Int,
     /** 上次阅读时帖子的总楼数（含主楼） */
     val rows: Int,
@@ -62,7 +62,7 @@ object ReadProgressManager {
     }
 
     /**
-     * 保存进度。readFloor 和 rows 只增不减：往回翻看前面的楼层时不会把“读到第几楼”改小。
+     * 保存进度。readFloor 是最后一次离开时看到的楼层；rows 只增不减（网页模式不在最后一页时只能估个下限）。
      */
     @JvmStatic
     fun save(tid: Int, page: Int, index: Int, offset: Int, lastVisibleFloor: Int, rows: Int, subject: String?) {
@@ -74,7 +74,7 @@ object ReadProgressManager {
             page = page,
             index = index.coerceAtLeast(0),
             offset = offset,
-            readFloor = maxOf(lastVisibleFloor, old?.readFloor ?: 0),
+            readFloor = lastVisibleFloor.coerceAtLeast(0),
             rows = maxOf(rows, old?.rows ?: 0),
             subject = subject ?: old?.subject,
             updateTime = System.currentTimeMillis(),
