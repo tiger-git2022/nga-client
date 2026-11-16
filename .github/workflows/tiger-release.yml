@@ -61,7 +61,7 @@ jobs:
             exit 0
           fi
 
-          upstream_name=$(sed -nE "s/^[[:space:]]*appVersionName = '([^']+)'.*//p" build.gradle | head -n 1)
+          upstream_name=$(sed -nE "s/^[[:space:]]*appVersionName = '([^']+)'.*/\1/p" build.gradle | head -n 1)
           if [ -z "$upstream_name" ]; then
             echo "::error::Could not read appVersionName from build.gradle"
             exit 1
@@ -76,8 +76,7 @@ jobs:
           version_name="$series.$patch"
           # A lower X.Y in .github/fork-version would publish a release older than the latest one
           newest=$(git tag --list 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
-          if [ -n "$newest" ] && [ "$(printf '%s
-' "$newest" "v$version_name" | sort -V | tail -n 1)" != "v$version_name" ]; then
+          if [ -n "$newest" ] && [ "$(printf '%s\n' "$newest" "v$version_name" | sort -V | tail -n 1)" != "v$version_name" ]; then
             echo "::error::v$version_name would be older than $newest, raise .github/fork-version"
             exit 1
           fi
