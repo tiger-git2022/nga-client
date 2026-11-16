@@ -35,13 +35,16 @@
 
 ### 版本号
 
+和 [mihon 分支](https://github.com/tiger-git2022/mihon) 一样用自己的版本号，不跟上游的版本号：
+
 | | 规则 | 例子 |
 |---|---|---|
-| tag / versionName | `v<上游 appVersionName>-t<N>` | `v5.1.1-t3` |
-| versionCode | `<上游 appVersionCode> × 1000 + N` | `5011003` |
+| tag / versionName | `vX.Y.Z` | `v1.0.3` |
+| versionCode | `X × 10000000 + Y × 10000 + Z` | `10000003` |
 
-N 对每个上游版本从 1 开始，每次发布加 1，所以 versionCode 一定递增。
-根目录 `build.gradle` 里上游的 `appVersionName`/`appVersionCode` 不要改，构建号由 CI 通过 `-Ptiger.buildNumber=N` 传入。
+`.github/fork-version` 里写 `X.Y`：加了新功能（或合入上游的大更新）的 PR 把 Y 加 1，大改动把 X 加 1；Z 是这个 X.Y 的第几次发布，从 0 开始自动递增，修 bug 不用改文件。
+上游版本号（根目录 `build.gradle` 的 `appVersionName`）不要改，会写在每个 Release 的说明里，「关于」页也会显示。
+第一个版本 `v5.1.1-t1`（versionCode 5011001）是旧规则发的，新规则的 versionCode 从 10000000 起，可以直接覆盖升级。
 
 ### GitHub Actions
 
@@ -93,4 +96,4 @@ A personal fork of [Justwen/NGA-CLIENT-VER-OPEN-SOURCE](https://github.com/Justw
 - **In-app update check** against this repository's releases (at launch, at most daily; manual from the About page).
 - Restores `compose3/theme/Color.kt`, missing upstream.
 
-Package `gov.anzong.androidnga.custom`, installs beside the official app. Versions are `v<upstream>-t<N>`, versionCode `<upstream code> × 1000 + N`. Releases are built by `tiger-release.yml` on every push to `custom`; `tiger-sync-upstream.yml` merges upstream `master_release` every 6 hours and releases when it builds, or opens an issue. Secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`, optional `SYNC_TOKEN`. Build locally with JDK 17.
+Package `gov.anzong.androidnga.custom`, installs beside the official app. Versions are the fork's own `vX.Y.Z` (X.Y in `.github/fork-version`, Z counted by the release workflow), versionCode `X × 10000000 + Y × 10000 + Z`. Releases are built by `tiger-release.yml` on every push to `custom`; `tiger-sync-upstream.yml` merges upstream `master_release` every 6 hours and releases when it builds, or opens an issue. Secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`, optional `SYNC_TOKEN`. Build locally with JDK 17.

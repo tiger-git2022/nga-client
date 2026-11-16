@@ -48,7 +48,9 @@ public class AboutActivity extends MaterialAboutActivity {
 
         builder.addItem(new MaterialAboutActionItem.Builder()
                 .text("版本")
-                .subText(BuildConfig.VERSION_NAME)
+                .subText(sp.phone.common.ForkUpdateChecker.isEnabled()
+                        ? "v" + sp.phone.common.ForkUpdateChecker.displayVersion() + "（基于上游 " + BuildConfig.VERSION_NAME + "，点击检查更新）"
+                        : BuildConfig.VERSION_NAME)
                 .icon(R.drawable.ic_about)
                 .setOnClickAction(() -> {
                     // Fork：自用版点版本号检查更新

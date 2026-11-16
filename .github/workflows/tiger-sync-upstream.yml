@@ -108,7 +108,7 @@ jobs:
         if: steps.merge.outputs.result == 'merged'
         run: |
           set -o pipefail
-          ./gradlew :nga_phone_base_3.0:assembleCustom -Ptiger.buildNumber=1 2>&1 | tee "$RUNNER_TEMP/build.log"
+          ./gradlew :nga_phone_base_3.0:assembleCustom 2>&1 | tee "$RUNNER_TEMP/build.log"
 
       - name: Push
         id: push

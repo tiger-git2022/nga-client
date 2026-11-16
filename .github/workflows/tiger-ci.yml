@@ -38,7 +38,7 @@ jobs:
 
       # Without -PngaSigningFile the custom build type is signed with the debug key.
       - name: Build custom APK (debug-signed)
-        run: ./gradlew :nga_phone_base_3.0:assembleCustom -Ptiger.buildNumber=1
+        run: ./gradlew :nga_phone_base_3.0:assembleCustom
 
       - name: Upload APK
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

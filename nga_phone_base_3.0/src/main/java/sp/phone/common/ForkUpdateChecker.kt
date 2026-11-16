@@ -46,7 +46,7 @@ object ForkUpdateChecker {
                 when {
                     release == null -> if (manual) ToastUtils.error("检查更新失败，请稍后重试")
                     release.versionCode > localVersionCode(activity) -> showDialog(activity, release)
-                    manual -> ToastUtils.success("已是最新版本（${BuildConfig.VERSION_NAME}）")
+                    manual -> ToastUtils.success("已是最新版本（v${displayVersion()}）")
                 }
             }
         }
@@ -90,6 +90,12 @@ object ForkUpdateChecker {
         }
     }
 
+    /** 自用版显示自己的版本号（X.Y.Z），其他构建显示上游版本号 */
+    @JvmStatic
+    fun displayVersion(): String {
+        return BuildConfig.FORK_VERSION.ifEmpty { BuildConfig.VERSION_NAME }
+    }
+
     private fun localVersionCode(activity: Activity): Long {
         val info = activity.packageManager.getPackageInfo(activity.packageName, 0)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else info.versionCode.toLong()
@@ -102,7 +108,7 @@ object ForkUpdateChecker {
         }
         AlertDialog.Builder(activity)
             .setTitle("发现新版本 ${release.tag}")
-            .setMessage("当前版本 ${BuildConfig.VERSION_NAME}\n\n$notes")
+            .setMessage("当前版本 v${displayVersion()}\n\n$notes")
             .setPositiveButton("下载") { _, _ -> openUrl(activity, release.apkUrl ?: release.htmlUrl) }
             .setNeutralButton("查看发布页") { _, _ -> openUrl(activity, release.htmlUrl) }
             .setNegativeButton("稍后", null)

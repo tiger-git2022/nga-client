@@ -13,7 +13,8 @@ def static getDate() {
 
 // Fork（tiger-git2022）：自用版 custom 构建类型
 // -PngaSigningFile=xxx.properties 指定签名（storeFile/storePassword/keyAlias/keyPassword），不传时用 debug 签名（CI 检查用）
-// -Ptiger.buildNumber=N 由发布工作流传入：versionName 加 "-tN"，versionCode = 上游 versionCode * 1000 + N
+// -Ptiger.version=X.Y.Z 由发布工作流传入（自己的版本号，X.Y 在 .github/fork-version），
+// versionCode = X * 10000000 + Y * 10000 + Z；本地不传时用 X.Y.0
 def loadCustomSigning() {
     def path = project.findProperty('ngaSigningFile')
     def props = new Properties()
@@ -32,7 +33,13 @@ android {
     compileSdk project.compileSdkVersion
 
     def customSigning = loadCustomSigning()
-    def tigerBuildNumber = (project.findProperty('tiger.buildNumber') ?: '0').toString().toInteger()
+    def forkSeries = rootProject.file('.github/fork-version').text.trim()
+    def tigerVersion = (project.findProperty('tiger.version') ?: "${forkSeries}.0").toString()
+    def tigerParts = tigerVersion.tokenize('.')*.toInteger()
+    if (tigerParts.size() != 3) {
+        throw new GradleException("tiger.version must be X.Y.Z, got ${tigerVersion}")
+    }
+    def tigerVersionCode = tigerParts[0] * 10000000 + tigerParts[1] * 10000 + tigerParts[2]
 
     signingConfigs {
         if (!customSigning.isEmpty()) {
@@ -65,6 +72,7 @@ android {
         versionName project.appVersionName
         // Fork：只有 custom 构建类型检查本仓库的新版本
         buildConfigField "String", "UPDATE_REPO", "\"\""
+        buildConfigField "String", "FORK_VERSION", "\"\""
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -105,9 +113,9 @@ android {
         custom {
             initWith release
             applicationIdSuffix '.custom'
-            versionNameSuffix "-t${tigerBuildNumber}"
             signingConfig customSigning.isEmpty() ? signingConfigs.debug : signingConfigs.custom
             buildConfigField "String", "UPDATE_REPO", "\"tiger-git2022/nga-client\""
+            buildConfigField "String", "FORK_VERSION", "\"${tigerVersion}\""
             matchingFallbacks = ['release']
         }
         debug {
@@ -139,8 +147,9 @@ android {
                 outputFileName = "nga_phone_${defaultConfig.versionName}_${getDate()}.apk"
             }
             if (variant.buildType.name == "custom") {
-                versionCodeOverride = project.appVersionCode * 1000 + tigerBuildNumber
-                outputFileName = "nga-custom-v${variant.versionName}.apk"
+                versionCodeOverride = tigerVersionCode
+                versionNameOverride = tigerVersion
+                outputFileName = "nga-custom-v${tigerVersion}.apk"
             }
         }
     }
