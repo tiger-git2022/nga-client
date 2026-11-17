@@ -70,8 +70,15 @@ public class TopicListFragment extends TopicSearchFragment {
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
+        // Fork: 玻璃状态栏、标题栏、悬浮按钮（要在 super 之前装，super 里会设置列表）
+        sp.phone.view.glass.ArticleGlass.installTopicList(requireActivity(), view);
         super.onViewCreated(view, savedInstanceState);
         updateFloatingMenu();
+        // Fork: 列表顶部留出状态栏和标题栏的高度，标题栏跟着列表滑走/浮出
+        androidx.recyclerview.widget.RecyclerView list = view.findViewById(R.id.list);
+        if (list != null) {
+            sp.phone.view.glass.ArticleGlass.applyListInsets(getActivity(), view, list);
+        }
     }
 
     private void updateFloatingMenu() {
@@ -85,8 +92,11 @@ public class TopicListFragment extends TopicSearchFragment {
 
     @Override
     public void hideLoadingView() {
-        AppBarLayout.LayoutParams lp = (AppBarLayout.LayoutParams) mToolbar.getLayoutParams();
-        lp.setScrollFlags(AppBarLayout.LayoutParams.SCROLL_FLAG_SCROLL | AppBarLayout.LayoutParams.SCROLL_FLAG_ENTER_ALWAYS);
+        // Fork: 装了玻璃时标题栏由玻璃跟随列表移动，不再交给 AppBarLayout 收起
+        if (!sp.phone.view.glass.ArticleGlass.isInstalled(getActivity())) {
+            AppBarLayout.LayoutParams lp = (AppBarLayout.LayoutParams) mToolbar.getLayoutParams();
+            lp.setScrollFlags(AppBarLayout.LayoutParams.SCROLL_FLAG_SCROLL | AppBarLayout.LayoutParams.SCROLL_FLAG_ENTER_ALWAYS);
+        }
         super.hideLoadingView();
     }
 

@@ -296,8 +296,12 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
         mListView.setAdapter(mArticleAdapter);
         mListView.setEmptyView(view.findViewById(R.id.empty_view));
         if (PhoneConfiguration.getInstance().useSolidColorBackground()) {
-            mListView.addItemDecoration(new DividerItemDecoration(view.getContext(), DividerItemDecoration.VERTICAL));
+            // Fork: 最后一楼下面不画分隔线（原为 DividerItemDecoration），否则拉到底时压在玻璃页码栏上沿
+            mListView.addItemDecoration(new sp.phone.view.InnerDividerDecoration(view.getContext()));
         }
+
+        // Fork: 玻璃标题栏和页码栏盖在列表上，列表上下留出它们的高度
+        sp.phone.view.glass.ArticleGlass.applyListInsets(getActivity(), view, mListView);
 
         // Fork: 右侧楼层滚动条，滑动时显示当前第几楼，可拖动快速跳楼
         FloorScrollBar.attach((ViewGroup) view, mListView, new FloorScrollBar.Source() {

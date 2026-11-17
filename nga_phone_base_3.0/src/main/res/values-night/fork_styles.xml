@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork：夜间的玻璃弹出菜单，深色玻璃配浅色字（白天见 values/fork_styles.xml） -->
+<resources>
+    <style name="Fork.ThemeOverlay.GlassPopup" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="actionOverflowMenuStyle">@style/Fork.Widget.GlassOverflowMenu</item>
+        <item name="popupMenuStyle">@style/Fork.Widget.GlassPopupMenu.AppCompat</item>
+        <item name="android:popupMenuStyle">@style/Fork.Widget.GlassPopupMenu</item>
+    </style>
+
+    <style name="Fork.Widget.GlassOverflowMenu" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">@drawable/fork_glass_popup</item>
+        <item name="android:popupElevation">0dp</item>
+        <item name="overlapAnchor">false</item>
+        <item name="android:overlapAnchor">false</item>
+        <!-- 明确指定偏移：不设时会按背景内边距往上挪，盖住标题栏下沿一截 -->
+        <item name="android:dropDownVerticalOffset">4dp</item>
+    </style>
+
+    <style name="Fork.Widget.GlassPopupMenu.AppCompat" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">@drawable/fork_glass_popup</item>
+        <item name="android:popupElevation">0dp</item>
+    </style>
+
+    <style name="Fork.Widget.GlassPopupMenu" parent="@android:style/Widget.Material.PopupMenu">
+        <item name="android:popupBackground">@drawable/fork_glass_popup</item>
+        <item name="android:popupElevation">0dp</item>
+    </style>
+</resources>

@@ -11,6 +11,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -141,7 +143,11 @@ private fun getResId(board: BoardEntity): Int {
 }
 
 @Composable
-fun ForumBoardBookmarkContent(bookmark: BoardEntity, forumBoardViewModel: ForumBoardViewModel) {
+fun ForumBoardBookmarkContent(
+    bookmark: BoardEntity,
+    forumBoardViewModel: ForumBoardViewModel,
+    topInset: Dp = 0.dp, // Fork: 玻璃顶栏盖在上面时，网格顶部留出顶栏的高度
+) {
     val bookmarkSize by forumBoardViewModel.bookmarkSizeLiveData.observeAsState()
     val maxColumn = 3
 
@@ -177,18 +183,21 @@ fun ForumBoardBookmarkContent(bookmark: BoardEntity, forumBoardViewModel: ForumB
 
     Column (Modifier.fillMaxSize()) {
 
-        if (UserManager.getUserList().size == 1) {
-            Text(modifier = Modifier.padding(8.dp), text = "建议登录多个账号，可有效改善跳转系统浏览器问题")
-        }
-
         LazyVerticalGrid(
             columns = GridCells.Fixed(maxColumn),
             state = gridState,
+            contentPadding = PaddingValues(top = topInset),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(start = 8.dp, end = 8.dp)
                 .bookmarkReorderGestures(dragState)
         ) {
+            // Fork: 提示放进网格里，玻璃顶栏下面也能滑过去
+            if (UserManager.getUserList().size == 1) {
+                item(key = "fork_account_tip", span = { GridItemSpan(maxColumn) }) {
+                    Text(modifier = Modifier.padding(vertical = 8.dp), text = "建议登录多个账号，可有效改善跳转系统浏览器问题")
+                }
+            }
             if (boards.size > 1) {
                 item(key = "fork_reorder_hint", span = { GridItemSpan(maxColumn) }) {
                     Text(
@@ -217,15 +226,20 @@ fun ForumBoardBookmarkContent(bookmark: BoardEntity, forumBoardViewModel: ForumB
 }
 
 @Composable
-fun ForumBoardContent(index: Int, forumBoardViewModel: ForumBoardViewModel) {
+fun ForumBoardContent(
+    index: Int,
+    forumBoardViewModel: ForumBoardViewModel,
+    topInset: Dp = 0.dp, // Fork: 玻璃顶栏盖在上面时，网格顶部留出顶栏的高度
+) {
     val boardData = forumBoardViewModel.getBoardData(index)
     if (boardData.type == BoardEntity.BoardType.BOOKMARK) {
-        ForumBoardBookmarkContent(boardData, forumBoardViewModel)
+        ForumBoardBookmarkContent(boardData, forumBoardViewModel, topInset)
     } else {
         val boardList: List<BoardEntity> = forumBoardViewModel.getBoardData(index).children!!
         val maxColumn = 3
         LazyVerticalGrid(
             columns = GridCells.Fixed(maxColumn),
+            contentPadding = PaddingValues(top = topInset),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(start = 8.dp, end = 8.dp)
