@@ -62,6 +62,7 @@ import com.justwent.androidnga.bu.UserManager
 import gov.anzong.androidnga.R
 import gov.anzong.androidnga.activity.compose.board.ForumBoardView
 import gov.anzong.androidnga.activity.compose.board.ForumBoardViewModel
+import gov.anzong.androidnga.activity.compose.board.ForkGlassHome
 import kotlinx.coroutines.launch
 import sp.phone.common.User
 
@@ -345,13 +346,12 @@ class NavigationDrawerFragment : BaseComposeFragment() {
                 }
             }, drawerState = drawerState
         ) {
-            ScaffoldApp(getTopAppBarData(navigationIconAction = {
+            // Fork: 首页顶栏和板块分类标签改成玻璃（原为 ScaffoldApp + ForumBoardView），见 ForkGlassHome.kt
+            ForkGlassHome(getTopAppBarData(navigationIconAction = {
                 scope.launch {
                     drawerState.open()
                 }
-            })) {
-                ForumBoardView(forumBoardViewModel)
-            }
+            }), forumBoardViewModel)
         }
     }
 

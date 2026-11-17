@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork：玻璃效果设置（同 S1 分支），见 sp/phone/view/glass/GlassSettings.kt -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="玻璃效果">
+
+        <SeekBarPreference
+            android:defaultValue="10"
+            android:key="fork_glass_blur_dp"
+            android:max="40"
+            android:summary="玻璃后面内容的模糊程度，0 为不模糊"
+            android:title="模糊度"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
+
+        <SeekBarPreference
+            android:defaultValue="40"
+            android:key="fork_glass_opacity"
+            android:max="100"
+            android:summary="玻璃上染色的浓度，越小越透明"
+            android:title="不透明度"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
+
+    </PreferenceCategory>
+</PreferenceScreen>

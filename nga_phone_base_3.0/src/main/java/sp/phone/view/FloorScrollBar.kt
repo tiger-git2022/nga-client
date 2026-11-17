@@ -11,7 +11,9 @@ import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import androidx.coordinatorlayout.widget.CoordinatorLayout
+import sp.phone.view.glass.GlassDrawable
 import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.appbar.AppBarLayout
@@ -21,7 +23,7 @@ import gov.anzong.androidnga.R
 /**
  * Fork: 帖子页右侧的楼层滚动条。
  *
- * 滑动时出现，一停下就淡出并往右滑走；滑块旁的气泡显示当前看到第几楼 / 全帖共几楼。
+ * 滑动时出现一根细滚动条，一停下就淡出并往右滑走；按住滑块拖动时，旁边的气泡显示拖到第几楼 / 全帖共几楼。
  * 滑动中按住右边缘的滑块拖动可在本页内快速跳到某一楼（翻页仍用左右滑动）。
  * 隐藏时不拦截任何触摸。
  */
@@ -46,11 +48,56 @@ class FloorScrollBar private constructor(
         @JvmStatic
         fun attach(parent: ViewGroup, recyclerView: RecyclerView, source: Source): FloorScrollBar {
             val bar = FloorScrollBar(parent.context, recyclerView, source)
+            // Fork: 气泡底下放一块跟着走的玻璃（模糊后面的帖子内容，染原来的深灰），文字由滚动条画在上面
+            val glass = View(parent.context)
+            parent.addView(glass, ViewGroup.LayoutParams(0, 0))
+            val tv = TypedValue()
+            parent.context.theme.resolveAttribute(android.R.attr.colorBackground, tv, true)
+            glass.background = GlassDrawable(glass, recyclerView, BUBBLE_COLOR, tv.data, cornerRadius = Float.MAX_VALUE)
+            glass.visibility = INVISIBLE
+            bar.bubbleGlass = glass
             parent.addView(
                 bar, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
             )
             return bar
         }
+
+        private val BUBBLE_COLOR = Color.rgb(48, 48, 48)
+    }
+
+    /** 气泡的玻璃底，每帧绘制前跟随气泡的位置、大小和整个滚动条的透明度、位移 */
+    private var bubbleGlass: View? = null
+
+    private val followBubble = ViewTreeObserver.OnPreDrawListener {
+        bubbleGlass?.let { g ->
+            if (bubbleRect.isEmpty || alpha <= 0f) {
+                if (g.visibility != INVISIBLE) g.visibility = INVISIBLE
+            } else {
+                val w = bubbleRect.width().toInt()
+                val h = bubbleRect.height().toInt()
+                val lp = g.layoutParams
+                if (lp.width != w || lp.height != h) {
+                    lp.width = w
+                    lp.height = h
+                    g.layoutParams = lp
+                }
+                val x = left + bubbleRect.left + translationX
+                val y = top + bubbleRect.top + translationY
+                val moved = g.translationX != x || g.translationY != y
+                g.translationX = x
+                g.translationY = y
+                g.alpha = alpha
+                if (g.visibility != VISIBLE) g.visibility = VISIBLE
+                // 玻璃自己的 OnPreDraw 可能已经按旧位置录过了，挪完立即按新位置重录
+                if (moved) (g.background as? GlassDrawable)?.refresh()
+            }
+        }
+        true
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        viewTreeObserver.addOnPreDrawListener(followBubble)
     }
 
     private fun dp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics)
@@ -148,12 +195,14 @@ class FloorScrollBar private constructor(
     }
 
     override fun onDetachedFromWindow() {
+        viewTreeObserver.removeOnPreDrawListener(followBubble)
         removeCallbacks(hideRunnable)
         super.onDetachedFromWindow()
     }
 
-    private val trackTop get() = verticalMargin
-    private val trackBottom get() = height - verticalMargin
+    // 列表上下的内边距（玻璃标题栏、页码栏盖住的部分）不放滚动条
+    private val trackTop get() = verticalMargin + recyclerView.paddingTop
+    private val trackBottom get() = height - verticalMargin - recyclerView.paddingBottom
 
     /**
      * 当前滚动位置对应的 0..1，按楼数算而不是按像素：
@@ -192,24 +241,6 @@ class FloorScrollBar private constructor(
         return ((y - trackTop - thumbHeight / 2) / travel).coerceIn(0f, 1f)
     }
 
-    /** 正在看的那一项：第一个可见项，它大半已经滑出屏幕时取下一项 */
-    private fun currentPosition(): Int {
-        val lm = recyclerView.layoutManager as? LinearLayoutManager ?: return -1
-        val first = lm.findFirstVisibleItemPosition()
-        if (first < 0) return -1
-        val view = lm.findViewByPosition(first) ?: return first
-        val visibleTop = recyclerView.paddingTop
-        val listHeight = recyclerView.height - recyclerView.paddingTop - recyclerView.paddingBottom
-        if (!recyclerView.canScrollVertically(1)) {
-            return lm.findLastVisibleItemPosition().coerceAtLeast(first)
-        }
-        return if (view.bottom - visibleTop < listHeight / 4 && first + 1 < (recyclerView.adapter?.itemCount ?: 0)) {
-            first + 1
-        } else {
-            first
-        }
-    }
-
     private fun positionForFraction(fraction: Float): Int {
         val count = recyclerView.adapter?.itemCount ?: 0
         if (count <= 0) return -1
@@ -245,8 +276,8 @@ class FloorScrollBar private constructor(
         rect.set(right - w, centerY - thumbHeight / 2, right, centerY + thumbHeight / 2)
         canvas.drawRoundRect(rect, w / 2, w / 2, thumbPaint)
 
-        // 气泡
-        val position = if (dragging) positionForFraction(fractionForY(dragY)) else currentPosition()
+        // 气泡：只在按住滑块拖动时显示（平时滑动浏览只有一根滚动条）
+        val position = if (dragging) positionForFraction(fractionForY(dragY)) else -1
         val floor = if (position >= 0) source.floorAt(position) else -1
         if (floor < 0) {
             bubbleRect.setEmpty()
@@ -268,7 +299,8 @@ class FloorScrollBar private constructor(
         val bTop = (centerY - bh / 2).coerceIn(0f, (height - bh).coerceAtLeast(0f))
         rect.set(bRight - bw, bTop, bRight, bTop + bh)
         bubbleRect.set(rect)
-        canvas.drawRoundRect(rect, bh / 2, bh / 2, bubblePaint)
+        // 有玻璃底时底色由玻璃画，这里只画文字
+        if (bubbleGlass == null) canvas.drawRoundRect(rect, bh / 2, bh / 2, bubblePaint)
         updateGestureExclusion(centerY)
         val baseline = bTop + padV - textPaint.fontMetrics.ascent
         canvas.drawText(current, rect.left + padH, baseline, textPaint)

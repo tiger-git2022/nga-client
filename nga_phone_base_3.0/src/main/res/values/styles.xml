@@ -3,12 +3,17 @@
 
     <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar"/>
 
-    <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light"/>
+    <!-- Fork: 标题栏三个点菜单改成玻璃（原 parent 为 ThemeOverlay.AppCompat.Light），见 fork_styles.xml -->
+    <style name="AppTheme.PopupOverlay" parent="Fork.ThemeOverlay.GlassPopup"/>
 
     <style name="AppThemeDayNight" parent="Theme.AppCompat.DayNight.DarkActionBar">
         <item name="android:textColor">@color/text_color_selector</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@color/window_background</item>
+        <!-- Fork: 其余弹出菜单（每楼的菜单等）也用玻璃，见 fork_styles.xml -->
+        <item name="popupMenuStyle">@style/Fork.Widget.GlassPopupMenu.AppCompat</item>
+        <item name="android:popupMenuStyle">@style/Fork.Widget.GlassPopupMenu</item>
+        <item name="actionOverflowMenuStyle">@style/Fork.Widget.GlassOverflowMenu</item>
     </style>
 
 

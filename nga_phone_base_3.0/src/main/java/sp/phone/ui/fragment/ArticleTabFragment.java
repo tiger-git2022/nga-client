@@ -115,6 +115,8 @@ public class ArticleTabFragment extends BaseRxFragment {
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         ButterKnife.bind(this, view);
         updateFloatingMenu();
+        // Fork: 玻璃标题栏和页码栏（原型）
+        sp.phone.view.glass.ArticleGlass.install(requireActivity(), view);
         mPagerAdapter = new ArticlePagerAdapter(getChildFragmentManager(), mRequestParam);
         ReadProgress progress = savedInstanceState == null ? getRestorableProgress() : null;
         if (progress != null) {

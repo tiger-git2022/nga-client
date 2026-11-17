@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fork：玻璃标题栏的状态，挂在 Activity 的 decorView 上 -->
+    <item name="fork_glass_state" type="id" />
+</resources>

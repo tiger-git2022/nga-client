@@ -34,6 +34,8 @@ public class SettingsFragment extends BasePreferenceFragment implements Preferen
     @Override
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
         addPreferencesFromResource(R.xml.settings);
+        // Fork: 玻璃效果的模糊度和不透明度
+        addPreferencesFromResource(R.xml.fork_settings_glass);
         mapping(getPreferenceScreen());
         configPreference();
     }
