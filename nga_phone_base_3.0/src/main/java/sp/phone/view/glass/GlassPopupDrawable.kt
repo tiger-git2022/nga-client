@@ -8,6 +8,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Outline
 import android.graphics.Path
 import android.graphics.PixelFormat
@@ -93,7 +95,8 @@ class GlassPopupDrawable : Drawable() {
         val tv = TypedValue()
         if (host.context.theme.resolveAttribute(android.R.attr.textColorPrimary, tv, true)) {
             val text = if (tv.resourceId != 0) host.context.getColorStateList(tv.resourceId).defaultColor else tv.data
-            tintColor = if (ColorUtils.calculateLuminance(text) < 0.5) Color.WHITE else Color.BLACK
+            tintColor = if (ColorUtils.calculateLuminance(text) < 0.5) Color.WHITE
+            else if (GlassStyle.isNight(host.context)) GlassStyle.NIGHT_TINT else Color.BLACK
         }
         val w = bounds.width()
         val h = bounds.height()
@@ -111,7 +114,14 @@ class GlassPopupDrawable : Drawable() {
             snapshot = bitmap
             node.setPosition(0, 0, w, h)
             val px = GlassSettings.blurDp * density
-            node.setRenderEffect(if (px > 0f) RenderEffect.createBlurEffect(px, px, Shader.TileMode.CLAMP) else null)
+            // 和顶栏一样：模糊之后提饱和度
+            val saturate = RenderEffect.createColorFilterEffect(
+                ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(GlassStyle.SATURATION) })
+            )
+            node.setRenderEffect(
+                if (px > 0f) RenderEffect.createChainEffect(saturate, RenderEffect.createBlurEffect(px, px, Shader.TileMode.CLAMP))
+                else saturate
+            )
             val c = node.beginRecording(w, h)
             try {
                 c.drawBitmap(bitmap, (src.left - left).toFloat(), (src.top - top).toFloat(), null)
