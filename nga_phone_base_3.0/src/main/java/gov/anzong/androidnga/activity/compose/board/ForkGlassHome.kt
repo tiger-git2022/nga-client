@@ -12,6 +12,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.Icon
@@ -33,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -127,10 +133,12 @@ fun ForkGlassHome(topAppBarData: TopAppBarData, viewModel: ForumBoardViewModel) 
             ForumBoardContent(page, viewModel, with(density) { barsHeightPx.toDp() })
         }
 
+        // 整条玻璃顶栏按下沿圆角裁剪：可横向滚动的分类标签和下划线不会伸出圆角
         Box(
             Modifier
                 .fillMaxWidth()
                 .onSizeChanged { barsHeightPx = it.height }
+                .clip(GlassBarShape)
         ) {
             GlassBackdrop(layer, contentOrigin, tint, backdrop, Modifier.matchParentSize())
             Column {
@@ -153,16 +161,37 @@ fun ForkGlassHome(topAppBarData: TopAppBarData, viewModel: ForumBoardViewModel) 
                 )
                 ScrollableTabRow(
                     selectedTabIndex = pagerState.currentPage,
-                    edgePadding = 0.dp,
+                    // 两头留出圆角的宽度，第一个和最后一个标签不压在圆角上
+                    edgePadding = GlassStyle.BAR_CORNER_DP.dp,
                     backgroundColor = Color.Transparent,
                     contentColor = Color.White,
                     divider = {},
+                    // 选中的分类：文字变亮、加粗，下面一条短的圆头半透明白线（像 iOS 的分段标签），代替原来整宽的白色下划线
+                    indicator = { positions ->
+                        Box(
+                            Modifier
+                                .tabIndicatorOffset(positions[pagerState.currentPage])
+                                .fillMaxHeight(),
+                            contentAlignment = Alignment.BottomCenter,
+                        ) {
+                            Box(
+                                Modifier
+                                    .padding(bottom = 6.dp)
+                                    .size(width = 20.dp, height = 3.dp)
+                                    .background(TabIndicatorColor, CircleShape)
+                            )
+                        }
+                    },
                 ) {
                     tabs.forEachIndexed { index, title ->
                         Tab(
                             selected = pagerState.currentPage == index,
                             onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                            text = { Text(title) }
+                            text = {
+                                Text(title, fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal)
+                            },
+                            selectedContentColor = Color.White,
+                            unselectedContentColor = Color.White.copy(alpha = 0.6f),
                         )
                     }
                 }
@@ -258,13 +287,18 @@ private fun GlassMenuSurface(content: @Composable () -> Unit) {
     }
 }
 
+/** 选中分类下面那条短线的颜色：70% 的白，和玻璃的半透明染色一个路子，棕色顶栏和夜间灰色顶栏上都看得清 */
+private val TabIndicatorColor = Color.White.copy(alpha = 0.7f)
+
+private val GlassBarShape = RoundedCornerShape(bottomStart = GlassStyle.BAR_CORNER_DP.dp, bottomEnd = GlassStyle.BAR_CORNER_DP.dp)
+
 /** 画 [layer]（内容）里位于自己下面的那一块：模糊、提饱和度，再叠一层 [tint] */
 @Composable
 private fun GlassBackdrop(layer: GraphicsLayer, contentOrigin: Offset, tint: Color, backdrop: Color, modifier: Modifier) {
     GlassSettings.init()
     val density = LocalDensity.current.density
     val blurPx = GlassSettings.blurDp * density
-    val opacity = GlassSettings.opacityPercent / 100f
+    val opacity = GlassSettings.opacityFor(LocalContext.current) / 100f
     val effect = remember(blurPx) {
         val saturate = RenderEffect.createColorFilterEffect(
             ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(GlassStyle.SATURATION) })
@@ -274,7 +308,7 @@ private fun GlassBackdrop(layer: GraphicsLayer, contentOrigin: Offset, tint: Col
     }
     var position by remember { mutableStateOf(Offset.Zero) }
     // 下沿两个角是圆角（和帖子页、板块列表的标题栏一样）
-    val shape = RoundedCornerShape(bottomStart = GlassStyle.BAR_CORNER_DP.dp, bottomEnd = GlassStyle.BAR_CORNER_DP.dp)
+    val shape = GlassBarShape
     Box(
         modifier
             .onGloballyPositioned { position = it.positionInRoot() }

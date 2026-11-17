@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -195,7 +196,12 @@ fun ForumBoardBookmarkContent(
             // Fork: 提示放进网格里，玻璃顶栏下面也能滑过去
             if (UserManager.getUserList().size == 1) {
                 item(key = "fork_account_tip", span = { GridItemSpan(maxColumn) }) {
-                    Text(modifier = Modifier.padding(vertical = 8.dp), text = "建议登录多个账号，可有效改善跳转系统浏览器问题")
+                    // 放进网格后不在 ScaffoldApp 的 Surface 里了，要自己给文字颜色（夜间原来是黑字）
+                    Text(
+                        modifier = Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp),
+                        text = "建议登录多个账号，可有效改善跳转系统浏览器问题",
+                        color = MaterialTheme.colors.onBackground,
+                    )
                 }
             }
             if (boards.size > 1) {

@@ -1,5 +1,7 @@
 body {
     color: #CFCFCF;
+    /* Fork: 夜间页面底色（同 night_bg_color）。网页自己画出底色，玻璃顶栏截图时浅色字才能正确透出来 */
+    background-color: #303030;
 }
 
 div.quote {

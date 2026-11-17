@@ -5,9 +5,11 @@
     <color name="text_color_disabled">#FF6F6F6F</color>
 
     <color name="web_text_color">#FF999999</color>
-    <color name="web_quote_background_color">#FF000000</color>
+    <!-- Fork: 底色调亮后，引用块用比底色暗一档的深灰（原来纯黑） -->
+    <color name="web_quote_background_color">#FF262626</color>
 
-    <color name="window_background">#FF202020</color>
+    <!-- Fork: 列表页的窗口底色和页面底色一致（原 #202020） -->
+    <color name="window_background">@color/night_bg_color</color>
     <color name="background_color">@color/night_bg_color</color>
     <color name="background_color2">@color/night_bg_color</color>
     <color name="foreground_color">#FF999999</color>
@@ -16,7 +18,7 @@
     <color name="colorPrimaryBrown">#FF1F2021</color>
     <color name="colorPrimaryDarkBrown">#FF1F2021</color>
 
-    <color name="material_window_background">#FF080C10</color>
+    <color name="material_window_background">@color/night_bg_color</color>
     <color name="material_card_background">#FF424242</color>
     <color name="material_icon_color">#FFEDEDED</color>
     <color name="material_title_color">#FFFFFFFF</color>

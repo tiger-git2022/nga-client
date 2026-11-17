@@ -83,7 +83,7 @@ class GlassPopupDrawable : Drawable() {
             canvas.restore()
         }
         GlassSettings.init()
-        val opacity = GlassSettings.opacityPercent
+        val opacity = host?.let { GlassSettings.opacityFor(it.context) } ?: GlassSettings.opacityPercent
         val alpha = if (ready) opacity else maxOf(opacity, 92)
         canvas.drawColor(ColorUtils.setAlphaComponent(tintColor, alpha * 255 / 100))
         canvas.restoreToCount(save)

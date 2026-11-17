@@ -8,7 +8,8 @@
 
     <color name="red">#FF0000</color>
     <color name="night_fore_color">#424952</color>
-    <color name="night_bg_color">#080C10</color>
+    <!-- Fork: 夜间底色从接近纯黑 #080C10 调亮成和 S1 夜间一样的 #303030，玻璃顶栏下不再显得特别黑 -->
+    <color name="night_bg_color">#303030</color>
     <color name="night_link_color">#294563</color>
     <color name="green">#00ff00</color>
     <color name="blue">#0000ff</color>

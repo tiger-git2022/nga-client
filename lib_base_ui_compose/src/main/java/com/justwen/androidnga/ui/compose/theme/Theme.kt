@@ -13,7 +13,7 @@ private val DarkColorPalette = darkColors(
     primary = PrimaryNight,
     primaryVariant = PrimaryGreen,
     secondary = PrimaryNight,
-    background = Color(0XFF080C10)
+    background = Color(0XFF303030) /* Fork: 夜间底色调亮，同 night_bg_color */
 )
 
 private val GreenLightColorPalette = lightColors(

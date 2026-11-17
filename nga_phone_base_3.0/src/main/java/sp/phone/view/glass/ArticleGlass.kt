@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.ColorDrawable
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import androidx.appcompat.widget.Toolbar
@@ -41,8 +42,8 @@ object GlassStyle {
     /** 弹出菜单的圆角 */
     const val POPUP_CORNER_DP = 24f
 
-    /** 夜间模式下顶栏、状态栏、悬浮按钮、弹出菜单的染色：深灰（比接近黑色的页面底色亮一档） */
-    val NIGHT_TINT = Color.rgb(84, 84, 88)
+    /** 夜间模式下顶栏、状态栏、悬浮按钮、弹出菜单的染色：比 #303030 底色亮得多的灰，半透明叠上去顶栏才和底色分得开 */
+    val NIGHT_TINT = Color.rgb(120, 120, 126)
 
     fun isNight(context: Context): Boolean =
         (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
@@ -268,6 +269,20 @@ object ArticleGlass {
         activity.window.decorView.setTag(R.id.fork_glass_state, state)
         val update = { state.update(statusInset + appBar.height, tabs?.height ?: 0) }
         appBar.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> update() }
+
+        // 标题栏往上收起时滑到状态栏玻璃后面；状态栏玻璃是半透明的，会透出后面标题栏的染色和下沿，
+        // 看上去状态栏和标题栏之间有一道分割。所以把滑进状态栏的那一截裁掉，只画状态栏下面的部分
+        val clip = Rect()
+        appBar.viewTreeObserver.addOnPreDrawListener {
+            val hidden = (-appBar.translationY).toInt()
+            if (hidden <= 0) {
+                if (appBar.clipBounds != null) appBar.clipBounds = null
+            } else {
+                clip.set(0, hidden, appBar.width, appBar.height)
+                if (appBar.clipBounds != clip) appBar.clipBounds = clip
+            }
+            true
+        }
         tabs?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> update() }
 
         // 实心状态栏色块是在第一次分发 WindowInsets 时才加上的，所以在布局回调里找它

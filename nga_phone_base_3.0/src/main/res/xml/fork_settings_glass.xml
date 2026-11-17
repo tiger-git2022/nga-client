@@ -19,8 +19,18 @@
             android:defaultValue="40"
             android:key="fork_glass_opacity"
             android:max="100"
-            android:summary="玻璃上染色的浓度，越小越透明"
-            android:title="不透明度"
+            android:summary="白天玻璃上染色的浓度，越小越透明"
+            android:title="不透明度（白天）"
+            app:min="0"
+            app:showSeekBarValue="true"
+            app:updatesContinuously="true" />
+
+        <SeekBarPreference
+            android:defaultValue="40"
+            android:key="fork_glass_opacity_night"
+            android:max="100"
+            android:summary="夜间玻璃上染色的浓度，越小越透明"
+            android:title="不透明度（夜间）"
             app:min="0"
             app:showSeekBarValue="true"
             app:updatesContinuously="true" />
