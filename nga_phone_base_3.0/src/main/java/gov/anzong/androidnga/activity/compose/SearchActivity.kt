@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -84,6 +85,15 @@ class SearchActivity : BaseComposeActivity() {
     fun SearchEditView() {
         var searchText by remember { mutableStateOf("") }
         val focusRequester = remember { FocusRequester() }
+        // Fork: 搜板块时收起键盘露出结果；点搜索历史时把关键词填进搜索框
+        val keyboardController = LocalSoftwareKeyboardController.current
+        val boardSearchState by viewModel.boardSearchState.observeAsState()
+        LaunchedEffect(boardSearchState?.takeIf { it.loading }) {
+            boardSearchState?.takeIf { it.loading }?.key?.let {
+                searchText = it
+                keyboardController?.hide()
+            }
+        }
 
         Box(
             modifier = Modifier
@@ -93,6 +103,7 @@ class SearchActivity : BaseComposeActivity() {
             BasicTextField(value = searchText,
                 onValueChange = {
                     searchText = it
+                    if (it.isEmpty()) viewModel.clearBoardSearch() // Fork
                 },
                 keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
@@ -125,7 +136,7 @@ class SearchActivity : BaseComposeActivity() {
                         ) {
                             Icon(
                                 modifier = Modifier
-                                    .clickable(onClick = { searchText = "" })
+                                    .clickable(onClick = { searchText = ""; viewModel.clearBoardSearch() /* Fork */ })
                                     .fillMaxHeight(),
                                 tint = Color.Gray,
                                 imageVector = Icons.Default.Clear,
@@ -164,7 +175,14 @@ class SearchActivity : BaseComposeActivity() {
 
             }
             SearchOptionView(tabIndex)
-            SearchHistoryView()
+            // Fork: 搜板块有结果时显示结果列表，清空搜索框回到搜索历史
+            val boardSearchState by viewModel.boardSearchState.observeAsState()
+            val state = boardSearchState
+            if (tabData[tabIndex].second == SearchViewModel.SEARCH_MODE_BOARD && state != null) {
+                BoardSearchResultView(state) { viewModel.clearBoardSearch() }
+            } else {
+                SearchHistoryView()
+            }
         }
     }
 

@@ -3,6 +3,13 @@ package gov.anzong.androidnga.activity.compose.board
 import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -72,14 +79,15 @@ fun ForumBoardGroupView(board: BoardEntity, context: Context = ContextUtils.getC
 private fun ForumBoardGridItemView(
     child: BoardEntity,
     forumBoardViewModel: ForumBoardViewModel,
-    context: Context = ContextUtils.getContext()
+    context: Context = ContextUtils.getContext(),
+    modifier: Modifier = Modifier, // Fork: 收藏拖动排序
 ) {
     val paddingValue = 4.dp
     val imageSize = 48.dp
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
-        modifier = Modifier
+        modifier = modifier
             .padding(paddingValue)
             .fillMaxWidth()
             .clickable {
@@ -137,6 +145,36 @@ fun ForumBoardBookmarkContent(bookmark: BoardEntity, forumBoardViewModel: ForumB
     val bookmarkSize by forumBoardViewModel.bookmarkSizeLiveData.observeAsState()
     val maxColumn = 3
 
+    // Fork: 长按拖动调整收藏顺序，见 ForkBookmarkReorder.kt
+    var orderVersion by remember { mutableIntStateOf(0) }
+    // 读 bookmarkSize / orderVersion 是为了在增删、排序后重组
+    val boards = if (bookmarkSize!! >= 0 && orderVersion >= 0) bookmark.children!!.toList() else emptyList()
+    // 万一旧数据里有重复 id，重复项换个 key（不能拖），避免 LazyGrid 因 key 重复崩溃
+    val keys = HashSet<String>()
+    val boardKeys = boards.mapIndexed { i, b -> if (keys.add(b.id)) b.id else "${b.id}#dup$i" }
+    val gridState = rememberLazyGridState()
+    val scope = rememberCoroutineScope()
+    val dragState = remember(gridState) {
+        BookmarkDragState(
+            gridState = gridState,
+            isReorderable = { key -> bookmark.children!!.any { it.id == key } },
+            onMove = { fromKey, toKey, fromIndex, toIndex ->
+                val list = bookmark.children!!
+                val from = list.indexOfFirst { it.id == fromKey }
+                val to = list.indexOfFirst { it.id == toKey }
+                // 移动的是第一个可见项时，列表会跟着它滚动，这里把位置固定住
+                val first = gridState.firstVisibleItemIndex
+                val firstOffset = gridState.firstVisibleItemScrollOffset
+                forumBoardViewModel.moveBookmarkBoard(from, to)
+                orderVersion++
+                if (first == fromIndex || first == toIndex) {
+                    scope.launch { gridState.scrollToItem(first, firstOffset) }
+                }
+            },
+            onDragEnd = {},
+        )
+    }
+
     Column (Modifier.fillMaxSize()) {
 
         if (UserManager.getUserList().size == 1) {
@@ -145,12 +183,30 @@ fun ForumBoardBookmarkContent(bookmark: BoardEntity, forumBoardViewModel: ForumB
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(maxColumn),
+            state = gridState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(start = 8.dp, end = 8.dp)
+                .bookmarkReorderGestures(dragState)
         ) {
-            items(bookmarkSize!!) { index ->
-                ForumBoardGridItemView(bookmark.children!![index], forumBoardViewModel)
+            if (boards.size > 1) {
+                item(key = "fork_reorder_hint", span = { GridItemSpan(maxColumn) }) {
+                    Text(
+                        modifier = Modifier.padding(start = 8.dp, top = 8.dp),
+                        text = "长按拖动可调整顺序",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                    )
+                }
+            }
+            items(boards.size, key = { boardKeys[it] }) { index ->
+                val board = boards[index]
+                val itemModifier = Modifier.bookmarkDragItem(dragState, boardKeys[index])
+                ForumBoardGridItemView(
+                    board, forumBoardViewModel,
+                    modifier = if (dragState.draggingKey == boardKeys[index]) itemModifier
+                    else itemModifier.animateItem(fadeInSpec = null, fadeOutSpec = null)
+                )
             }
             item(span = { GridItemSpan(maxColumn) }) {
                 val paddingValues = WindowInsets.navigationBars.asPaddingValues()

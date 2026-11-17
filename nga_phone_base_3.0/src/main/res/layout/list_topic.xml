@@ -13,17 +13,6 @@
         android:textIsSelectable="false"
         android:textSize="17.0sp" />
 
-    <TextView
-        android:id="@+id/read_progress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:maxLines="1"
-        android:textColor="@color/read_progress_color"
-        android:textIsSelectable="false"
-        android:textSize="@dimen/topic_list_item_sub_text_size"
-        android:visibility="gone" />
-
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

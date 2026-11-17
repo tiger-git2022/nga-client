@@ -3,15 +3,11 @@ package gov.anzong.androidnga.activity.compose
 import android.content.Context
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.alibaba.android.arouter.launcher.ARouter
 import gov.anzong.androidnga.arouter.ARouterConstants
-import gov.anzong.androidnga.base.util.ToastUtils
-import gov.anzong.androidnga.core.board.data.BoardEntity
+import kotlinx.coroutines.launch
 import sp.phone.common.UserManagerImpl
-import sp.phone.mvp.model.entity.Board
-import sp.phone.param.ParamKey
-import sp.phone.task.SearchBoardTask
-import sp.phone.util.ActivityUtils
 
 class SearchViewModel : ViewModel() {
 
@@ -92,27 +88,27 @@ class SearchViewModel : ViewModel() {
         }
     }
 
+    // Fork: 搜板块时列出全部结果让用户选（原版直接进入第一个结果），见 ForkBoardSearch.kt
+    val boardSearchState = MutableLiveData<BoardSearchState?>(null)
+
     private fun queryBoard(context: Context, query: String) {
         if (query.isEmpty()) {
             return
         }
         putHistory(searchMode.value!!, query)
 
-        ActivityUtils.getInstance().noticeSaying(context)
-
-        SearchBoardTask.execute(query) { data: BoardEntity? ->
-            ActivityUtils.getInstance().dismiss()
-            if (data == null) {
-                ToastUtils.info("没有找到符合条件的版面或者网络错误")
-            } else {
-                ARouter.getInstance()
-                    .build(ARouterConstants.ACTIVITY_TOPIC_LIST)
-                    .withInt(ParamKey.KEY_FID, data.fid)
-                    .withString(ParamKey.BOARD_HEAD, data.head)
-                    .withString(ParamKey.KEY_TITLE, data.name)
-                    .navigation()
+        boardSearchState.value = BoardSearchState(query, loading = true)
+        viewModelScope.launch {
+            val result = ForkBoardSearch.search(query)
+            // 连续搜索时只保留最后一次的结果
+            if (boardSearchState.value?.key == query) {
+                boardSearchState.value = result
             }
         }
+    }
+
+    fun clearBoardSearch() {
+        boardSearchState.value = null
     }
 
     private fun queryUser(query: String) {

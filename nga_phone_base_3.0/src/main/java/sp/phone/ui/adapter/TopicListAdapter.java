@@ -1,6 +1,9 @@
 package sp.phone.ui.adapter;
 
 import android.content.Context;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -90,29 +93,27 @@ public class TopicListAdapter extends BaseAppendableAdapter<ThreadPageInfo, Topi
         }
         holder.author.setText(entry.getAuthor());
         holder.lastReply.setText(entry.getLastPoster());
-        holder.num.setText(String.valueOf(entry.getReplies()));
         holder.title.setText(TopicTitleHelper.handleTitleFormat(entry));
-        bindReadProgress(holder, entry);
+        bindRepliesWithProgress(holder, entry);
     }
 
-    private void bindReadProgress(TopicViewHolder holder, ThreadPageInfo entry) {
+    /**
+     * Fork: 回复数后面跟上次阅读之后新增的楼数，如「31（+6）」；没有阅读记录就只显示回复数。
+     */
+    private void bindRepliesWithProgress(TopicViewHolder holder, ThreadPageInfo entry) {
+        String replies = String.valueOf(entry.getReplies());
         ReadProgress progress = ReadProgressManager.get(entry.getTid());
         if (progress == null) {
-            holder.readProgress.setVisibility(View.GONE);
+            holder.num.setText(replies);
             return;
         }
-        StringBuilder builder = new StringBuilder();
-        if (progress.getReadFloor() > 0) {
-            builder.append("读到 ").append(progress.getReadFloor()).append(" 楼");
-        } else {
-            builder.append("看过主楼");
-        }
         int newReplies = progress.newReplies(entry.getReplies());
+        SpannableString text = new SpannableString(replies + "（+" + newReplies + "）");
         if (newReplies > 0) {
-            builder.append(" · 新增 ").append(newReplies).append(" 楼");
+            int color = holder.num.getContext().getColor(R.color.read_progress_color);
+            text.setSpan(new ForegroundColorSpan(color), replies.length(), text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
-        holder.readProgress.setText(builder);
-        holder.readProgress.setVisibility(View.VISIBLE);
+        holder.num.setText(text);
     }
 
     public class TopicViewHolder extends RecyclerView.ViewHolder {
@@ -128,9 +129,6 @@ public class TopicListAdapter extends BaseAppendableAdapter<ThreadPageInfo, Topi
 
         @BindView(R.id.last_reply)
         public TextView lastReply;
-
-        @BindView(R.id.read_progress)
-        public TextView readProgress;
 
         public TopicViewHolder(View itemView) {
             super(itemView);

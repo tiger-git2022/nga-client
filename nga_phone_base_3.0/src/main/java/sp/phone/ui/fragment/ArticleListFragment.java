@@ -45,6 +45,7 @@ import sp.phone.util.ActivityUtils;
 import sp.phone.util.FunctionUtils;
 import gov.anzong.androidnga.common.util.NLog;
 import sp.phone.util.StringUtils;
+import sp.phone.view.FloorScrollBar;
 import sp.phone.view.RecyclerViewEx;
 
 /*
@@ -297,6 +298,23 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
         if (PhoneConfiguration.getInstance().useSolidColorBackground()) {
             mListView.addItemDecoration(new DividerItemDecoration(view.getContext(), DividerItemDecoration.VERTICAL));
         }
+
+        // Fork: 右侧楼层滚动条，滑动时显示当前第几楼，可拖动快速跳楼
+        FloorScrollBar.attach((ViewGroup) view, mListView, new FloorScrollBar.Source() {
+            @Override
+            public int floorAt(int position) {
+                if (mThreadInfo == null || position < 0 || position >= mThreadInfo.postInfoList.size()) {
+                    return -1;
+                }
+                ThreadPostInfo row = mThreadInfo.postInfoList.get(position);
+                return row == null ? -1 : row.lou;
+            }
+
+            @Override
+            public int lastFloor() {
+                return mThreadInfo == null ? -1 : mThreadInfo.totalRows - 1;
+            }
+        });
 
         TextView sayingView = (TextView) mLoadingView.findViewById(R.id.saying);
         sayingView.setText(ActivityUtils.getSaying());
