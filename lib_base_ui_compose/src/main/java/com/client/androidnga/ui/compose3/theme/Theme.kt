@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
 
 
 private val defaultLDarkColorScheme =
-    darkColorScheme(primary = PrimaryNight, background = Color(0XFF080C10))
+    darkColorScheme(primary = PrimaryNight, background = Color(0XFF303030) /* Fork: 夜间底色调亮，同 night_bg_color */)
 private val defaultLightColorScheme = lightColorScheme(background = Color(0xFFFFF8E7))
 
 private val greenLightColorScheme = defaultLightColorScheme.copy(primary = PrimaryGreen)

@@ -88,7 +88,7 @@ class GlassDrawable(
         val v = GlassSettings.version
         if (v == appliedSettings) return false
         appliedSettings = v
-        tint = ColorUtils.setAlphaComponent(tintColor, GlassSettings.opacityPercent * 255 / 100)
+        tint = ColorUtils.setAlphaComponent(tintColor, GlassSettings.opacityFor(host.context) * 255 / 100)
         // 模糊之后提高饱和度：后面的头像、图片透过来颜色更鲜明，更像玻璃而不是毛玻璃
         val px = GlassSettings.blurDp * density
         val saturate = RenderEffect.createColorFilterEffect(
@@ -224,10 +224,12 @@ class GlassDrawable(
 
     private var webBitmap: Bitmap? = null
     // WebView 用软件方式截图时会自己补一层白底（页面上它是透明的，透出米色），玻璃里就成了一片灰。
-    // 用正片叠底画到已经画好的底色上：白底变回底色，文字和图片照常
+    // 白天用正片叠底画到已经画好的底色上：白底变回底色，深色文字和图片照常。
+    // 夜间正片叠底会把浅色字压暗到看不见，所以夜间网页自己画出页面底色（style_dark.css），直接画上去
     private val webPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
         blendMode = BlendMode.MULTIPLY
     }
+    private val webPaintNight = Paint(Paint.FILTER_BITMAP_FLAG)
 
     private fun drawWebView(web: WebView, canvas: Canvas, area: RectF) {
         val left = web.scrollX.toFloat()
@@ -248,7 +250,7 @@ class GlassDrawable(
         c.scale(scale, scale)
         c.translate(-r.left, -r.top)
         runCatching { web.draw(c) }
-        canvas.drawBitmap(bitmap, Rect(0, 0, bw, bh), r, webPaint)
+        canvas.drawBitmap(bitmap, Rect(0, 0, bw, bh), r, if (GlassStyle.isNight(web.context)) webPaintNight else webPaint)
     }
 
     override fun draw(canvas: Canvas) {
