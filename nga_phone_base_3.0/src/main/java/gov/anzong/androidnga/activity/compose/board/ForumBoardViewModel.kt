@@ -63,6 +63,13 @@ object ForumBoardViewModel : ViewModel() {
         bookmarkSizeLiveData.value = forumBoardModel.removeBookmarkBoard(fid, stid)
     }
 
+    // Fork: 收藏板块拖动排序（ForumBoardModel.swapBookmark 会顺带保存）
+    fun moveBookmarkBoard(from: Int, to: Int) {
+        val size = forumBoardModel.bookmarkBoard.children?.size ?: return
+        if (from == to || from !in 0 until size || to !in 0 until size) return
+        forumBoardModel.swapBookmark(from, to)
+    }
+
     fun removeAllBookmarkBoard() {
         forumBoardModel.removeAllBookmarkBoard()?.let {
             bookmarkSizeLiveData.value = it

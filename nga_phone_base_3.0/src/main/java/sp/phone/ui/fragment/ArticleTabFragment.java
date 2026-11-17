@@ -23,7 +23,6 @@ import androidx.fragment.app.FragmentManager;
 import androidx.viewpager.widget.ViewPager;
 
 import com.getbase.floatingactionbutton.FloatingActionsMenu;
-import com.google.android.material.snackbar.Snackbar;
 import com.justwen.androidnga.base.activity.ARouterConstants;
 import com.trello.rxlifecycle2.android.FragmentEvent;
 
@@ -145,9 +144,6 @@ public class ArticleTabFragment extends BaseRxFragment {
             mTabLayout.setTabOnScreenLimit(1);
         }
         mTabLayout.setUpWithViewPager(mViewPager);
-        if (progress != null) {
-            showResumeHint(view, progress);
-        }
 
         mFam.getAddFloatingActionButton().setOnLongClickListener(v -> {
             mBehavior.animateOut(mFam);
@@ -170,28 +166,6 @@ public class ArticleTabFragment extends BaseRxFragment {
             return null;
         }
         return progress;
-    }
-
-    private void showResumeHint(View view, ReadProgress progress) {
-        String text = "已回到上次位置：第 " + progress.getPage() + " 页";
-        if (progress.getReadFloor() > 0) {
-            text += "，之前读到 " + progress.getReadFloor() + " 楼";
-        }
-        Snackbar.make(view, text, Snackbar.LENGTH_LONG)
-                .setAction("从头看", v -> {
-                    getActivityViewModel().restorePage = 1;
-                    getActivityViewModel().restoreIndex = 0;
-                    getActivityViewModel().restoreOffset = 0;
-                    mViewPager.setCurrentItem(0, false);
-                    // 第 1 页已经加载过时不会再走 setData，直接通知它回到顶部
-                    RxBus.getInstance().post(new RxEvent(RxEvent.EVENT_ARTICLE_GO_FLOOR, 0, 0));
-                })
-                // 主题里的文字颜色是深色，和 Snackbar 的深色背景混在一起看不清，这里固定配色
-                .setBackgroundTint(0xFF323232)
-                .setTextColor(0xFFFFFFFF)
-                .setActionTextColor(0xFFFFB74D)
-                .setDuration(4000)
-                .show();
     }
 
     private void updateFloatingMenu() {
