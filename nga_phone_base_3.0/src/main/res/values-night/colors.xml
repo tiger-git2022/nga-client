@@ -7,6 +7,8 @@
     <color name="web_text_color">#FF999999</color>
     <!-- Fork: 底色调亮后，引用块用比底色暗一档的深灰（原来纯黑） -->
     <color name="web_quote_background_color">#FF262626</color>
+    <!-- Fork: 帖子列表的作者、最后回复、回复数原来夜间也是深蓝 #294563，在夜间底色上看不清，改成浅蓝 -->
+    <color name="night_link_color">#7FA6D4</color>
 
     <!-- Fork: 列表页的窗口底色和页面底色一致（原 #202020） -->
     <color name="window_background">@color/night_bg_color</color>

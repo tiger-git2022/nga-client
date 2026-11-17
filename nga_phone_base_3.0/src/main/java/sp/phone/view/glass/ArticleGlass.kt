@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.Rect
 import android.graphics.drawable.ColorDrawable
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import androidx.appcompat.widget.Toolbar
@@ -15,7 +14,6 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
-import android.widget.FrameLayout
 import android.widget.ImageView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -197,7 +195,7 @@ object ArticleGlass {
 
     /**
      * 通用部分：[content] 铺满 [coordinator]（含 [bottomBar] 下面），状态栏、标题栏、[bottomBar]、悬浮按钮换成玻璃，
-     * 状态栏玻璃加在 [overlayParent] 里。
+     * 悬浮按钮在 [overlayParent] 里找。
      */
     private fun installPage(
         activity: Activity, overlayParent: ViewGroup, coordinator: CoordinatorLayout,
@@ -253,33 +251,27 @@ object ArticleGlass {
             }
         }
 
-        // 状态栏也做成玻璃：隐藏 BaseActivity 在页面最上面插的实心色块（R.id.status_bar），内容铺到屏幕顶，
-        // 状态栏位置放一条固定的玻璃，标题栏往下挪一个状态栏高；标题栏收起时滑到这条玻璃后面
-        val statusGlass = View(activity)
-        val statusLp = if (root is CoordinatorLayout) {
-            CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0).apply { gravity = Gravity.TOP }
-        } else {
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, Gravity.TOP)
-        }
-        root.addView(statusGlass, statusLp)
-        statusGlass.background = GlassDrawable(statusGlass, container, barTint, backdrop)
+        // 状态栏和标题栏是同一块玻璃：隐藏 BaseActivity 在页面最上面插的实心色块（R.id.status_bar），内容铺到屏幕顶，
+        // 标题栏向上延伸到屏幕顶（顶部留出状态栏高的内边距）。收起时整块玻璃一起推上去，状态栏变回透明，直接看到内容
+        // （原来是状态栏一条固定玻璃 + 标题栏两块，接缝处模糊不连续，看上去有一道分割线）
         var statusInset = 0
+        val baseTopPadding = appBar.paddingTop
 
         val state = State(appBar, barTint, backdrop, foreground)
         activity.window.decorView.setTag(R.id.fork_glass_state, state)
-        val update = { state.update(statusInset + appBar.height, tabs?.height ?: 0) }
+        val update = { state.update(appBar.height, tabs?.height ?: 0) }
         appBar.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> update() }
 
-        // 标题栏往上收起时滑到状态栏玻璃后面；状态栏玻璃是半透明的，会透出后面标题栏的染色和下沿，
-        // 看上去状态栏和标题栏之间有一道分割。所以把滑进状态栏的那一截裁掉，只画状态栏下面的部分
-        val clip = Rect()
+        // 玻璃推上去、状态栏露出内容后，状态栏图标按页面底色选深浅；玻璃盖着状态栏时按玻璃染色选
+        val backdropLight = ColorUtils.calculateLuminance(backdrop) > 0.5
+        val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+        var iconsLight = light
         appBar.viewTreeObserver.addOnPreDrawListener {
-            val hidden = (-appBar.translationY).toInt()
-            if (hidden <= 0) {
-                if (appBar.clipBounds != null) appBar.clipBounds = null
-            } else {
-                clip.set(0, hidden, appBar.width, appBar.height)
-                if (appBar.clipBounds != clip) appBar.clipBounds = clip
+            val covered = appBar.height + appBar.translationY > statusInset
+            val want = if (covered || statusInset == 0) light else backdropLight
+            if (want != iconsLight) {
+                iconsLight = want
+                insetsController.isAppearanceLightStatusBars = want
             }
             true
         }
@@ -294,11 +286,7 @@ object ArticleGlass {
                 if (solid != null && solid.visibility != View.GONE) solid.visibility = View.GONE
                 if (top != statusInset) {
                     statusInset = top
-                    statusGlass.layoutParams.height = top
-                    statusGlass.requestLayout()
-                    val lp = appBar.layoutParams as ViewGroup.MarginLayoutParams
-                    lp.topMargin = top
-                    appBar.layoutParams = lp
+                    appBar.setPadding(appBar.paddingLeft, baseTopPadding + top, appBar.paddingRight, appBar.paddingBottom)
                     update()
                 }
                 if (solid != null && top > 0) {

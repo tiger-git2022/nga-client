@@ -244,12 +244,14 @@ class NavigationDrawerFragment : BaseComposeFragment() {
         onClick: (() -> Unit)? = null,
         extra: String? = null
     ) {
+        // Fork: 原来写死 Color.DarkGray，夜间底色上看不清，夜间改用浅灰
+        val itemColor = if (MaterialTheme.colors.isLight) Color.DarkGray else Color.LightGray
         NavigationDrawerItem(
             label = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = label,
-                        color = Color.DarkGray,
+                        color = itemColor,
                         fontWeight = FontWeight.Medium,
                         fontSize = 16.sp,
                         modifier = Modifier.alignByBaseline()
@@ -275,7 +277,7 @@ class NavigationDrawerFragment : BaseComposeFragment() {
                         Icon(
                             modifier = Modifier.size(26.dp),
                             painter = painterResource(iconId),
-                            tint = Color.DarkGray,
+                            tint = itemColor,
                             contentDescription = ""
                         )
                     }
