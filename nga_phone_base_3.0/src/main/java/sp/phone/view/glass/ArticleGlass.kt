@@ -1,6 +1,8 @@
 package sp.phone.view.glass
 
 import android.app.Activity
+import android.content.Context
+import android.content.res.Configuration
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -38,6 +40,15 @@ object GlassStyle {
 
     /** 弹出菜单的圆角 */
     const val POPUP_CORNER_DP = 24f
+
+    /** 夜间模式下顶栏、状态栏、悬浮按钮、弹出菜单的染色：深灰（比接近黑色的页面底色亮一档） */
+    val NIGHT_TINT = Color.rgb(84, 84, 88)
+
+    fun isNight(context: Context): Boolean =
+        (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+    /** 玻璃顶栏的染色：白天用原来的顶栏色，夜间换成 [NIGHT_TINT] */
+    fun barTint(context: Context, original: Int): Int = if (isNight(context)) NIGHT_TINT else original
 }
 
 /**
@@ -194,7 +205,9 @@ object ArticleGlass {
         val root = overlayParent
         val backdrop = themeColor(activity, android.R.attr.colorBackground)
         // 染色保持原来的颜色：标题栏、状态栏、悬浮按钮用顶栏色，页码栏用它原来的底色；文字图标按顶栏色深浅选
-        val barTint = colorOf(appBar.background) ?: themeColor(activity, androidx.appcompat.R.attr.colorPrimary)
+        val barTint = GlassStyle.barTint(
+            activity, colorOf(appBar.background) ?: themeColor(activity, androidx.appcompat.R.attr.colorPrimary)
+        )
         // 页码栏原来没有自己的底色，透出的是页面底色（米色），所以用页面底色
         val tabsTint = backdrop
         val light = ColorUtils.calculateLuminance(barTint) > 0.5

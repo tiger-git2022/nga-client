@@ -37,6 +37,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -95,7 +97,8 @@ fun ForkGlassHome(topAppBarData: TopAppBarData, viewModel: ForumBoardViewModel) 
     var contentOrigin by remember { mutableStateOf(Offset.Zero) }
     var barsHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val tint = MaterialTheme.colors.primary
+    // 夜间模式换成深灰，见 GlassStyle.NIGHT_TINT
+    val tint = Color(GlassStyle.barTint(LocalContext.current, MaterialTheme.colors.primary.toArgb()))
     val backdrop = MaterialTheme.colors.background
 
     // 状态栏透明、浅色图标，玻璃顶栏延伸到状态栏下面
