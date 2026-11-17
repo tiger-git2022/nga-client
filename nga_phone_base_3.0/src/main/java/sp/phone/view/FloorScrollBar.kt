@@ -42,8 +42,8 @@ class FloorScrollBar private constructor(
     }
 
     companion object {
-        /** 停止滑动（或松开滑块）后多久开始淡出；留一点时间让手指来得及按住气泡拖动 */
-        private const val HIDE_DELAY = 200L
+        /** 停止滑动（或松开滑块）后多久开始淡出：停 1 秒，手指来得及按住滑块拖动 */
+        private const val HIDE_DELAY = 1000L
 
         @JvmStatic
         fun attach(parent: ViewGroup, recyclerView: RecyclerView, source: Source): FloorScrollBar {
@@ -103,7 +103,7 @@ class FloorScrollBar private constructor(
     private fun dp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics)
     private fun sp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
 
-    private val touchWidth = dp(36f)
+    private val touchWidth = dp(48f)
     private val thumbWidth = dp(5f)
     private val thumbWidthDragging = dp(8f)
     private val thumbHeight = dp(40f)
