@@ -109,7 +109,11 @@ object ForkUpdateChecker {
         AlertDialog.Builder(activity)
             .setTitle("发现新版本 ${release.tag}")
             .setMessage("当前版本 v${displayVersion()}\n\n$notes")
-            .setPositiveButton("下载") { _, _ -> openUrl(activity, release.apkUrl ?: release.htmlUrl) }
+            // 有 APK 时在应用里下载并安装（ForkUpdateDownloader），没有时打开发布页
+            .setPositiveButton(if (release.apkUrl != null) "下载并安装" else "下载") { _, _ ->
+                val apk = release.apkUrl
+                if (apk != null) ForkUpdateDownloader.download(activity, apk, release.tag) else openUrl(activity, release.htmlUrl)
+            }
             .setNeutralButton("查看发布页") { _, _ -> openUrl(activity, release.htmlUrl) }
             .setNegativeButton("稍后", null)
             .show()

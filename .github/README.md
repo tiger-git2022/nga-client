@@ -16,7 +16,7 @@
   - 每个帖子记住上次停在第几页、哪个位置，以及最远读到第几楼。数据只存在手机本地（`read_progress.db`），最多 5000 个帖子，超出时删掉最久没看的。
   - 再次打开帖子直接回到上次的位置（不再弹提示条）。
   - 帖子列表（板块、搜索结果、浏览历史）里看过的帖子，回复数后面显示「（+K）」，比如「31（+6）」，K = 上次阅读之后新增的楼数（列表里的回复数 + 1 − 上次阅读时的总楼数），有新楼时变色；没看过的帖子只显示回复数。
-  - 帖子页右侧的楼层滚动条：滑动时出现一根细滚动条，停下 0.2 秒后淡出滑走；滑动时按住滑块拖动可在本页内快速跳楼，拖动时旁边的玻璃气泡显示「拖到的楼 / 最后一楼」。滑块位置按楼数算，不会因为图片加载而跳动。
+  - 帖子页右侧的楼层滚动条：滑动时出现一根细滚动条，停下 1 秒后淡出滑走；滑动时按住滑块拖动可在本页内快速跳楼，拖动时旁边的玻璃气泡显示「拖到的楼 / 最后一楼」。滑块位置按楼数算，不会因为图片加载而跳动。滑块和轨道一样宽、中线对齐；底部会躲开屏幕圆角和手势条，到底时也完整露出来。
   - 打开指定楼层（pid）、只看某人、搜索回复时不记录，也不跳转。
   - 原版打开帖子总是从第 1 页开始，这里一并修正。
 - **网页模式**（帖子无法用原生界面显示时自动切换，或点标题栏的地球图标）
@@ -26,16 +26,16 @@
 - **搜板块列出全部结果**：原版搜板块直接进入服务器返回的第一个结果（还丢掉了合集的 stid）。现在列出全部结果（按相关度），每项显示是否合集、所属板块和 fid/stid，没有权限的灰掉；点进入，点右边的星星直接收藏/取消收藏。清空搜索框或点结果标题旁的 × 回到搜索历史。
 - **收藏板块调整顺序**：「我的收藏」里长按一个板块拖到想要的位置，松手即保存。
 - **玻璃效果**（做法同 S1 分支，再按 NGA 调整）
-  - 首页、板块帖子列表、帖子页：状态栏和标题栏是一整块玻璃（后面内容的模糊 + 半透明的原顶栏色），标题栏下沿两角是圆角。内容从玻璃下面滑过；标题栏往下读时随内容滑走（整块玻璃一起推上去，状态栏变回透明、直接露出内容，状态栏图标按页面底色换深浅）、往上滑时浮出来盖在内容上。首页的板块分类标签也在这块玻璃里。
-  - 悬浮按钮、下拉刷新的转圈按钮、楼层滚动条的气泡也是玻璃。
+  - 首页、板块帖子列表、帖子页：状态栏和标题栏是一整块玻璃（后面内容的模糊 + 半透明的原顶栏色），标题栏下沿两角是圆角。内容从玻璃下面滑过；标题栏往下读时随内容滑走（整块玻璃一起推上去，状态栏变回透明、直接露出内容，状态栏图标按页面底色换深浅）、往上滑时浮出来盖在内容上。首页的板块分类标签也在这块玻璃里；帖子页的页码栏在顶部时（「主题页面显示底部标签页」关闭），页码也在这块玻璃里，往下读时和标题栏一起滑走，翻页后重新出来。首页左上角是打开侧边栏的菜单按钮。
+  - 悬浮按钮、下拉刷新的转圈按钮、楼层滚动条的气泡也是玻璃。帖子页刚打开时不显示悬浮按钮，往上滑或翻页后出来。
   - 所有弹出菜单（标题栏三个点菜单、每楼的菜单、首页菜单）是玻璃，24dp 圆角，从标题栏下沿弹出、不盖住标题栏。白天浅色玻璃配深色字，夜间深色玻璃配浅色字。
   - 「设置 → 玻璃效果」可调模糊度（默认 10）和不透明度，白天、夜间分开调（默认都是 40%）。
   - 夜间页面底色是 #303030（和 S1 一致，原来接近纯黑），玻璃染色是 (120,120,126) 的灰。
-  - 夜间帖子列表的作者、最后回复、回复数改成浅蓝 #7FA6D4（原来的深蓝在夜间底色上看不清），侧边栏菜单文字夜间改成浅灰。
+  - 夜间帖子列表的作者、最后回复、回复数改成灰蓝 #6A88AE（原来的深蓝在夜间底色上看不清），侧边栏菜单文字夜间改成浅灰。
   - 首页分类标签选中时文字加粗变亮，下面一条短的半透明白线。
   - 帖子页去掉了底部页码栏（「主题页面显示底部标签页」打开时）：左右滑动翻页，「⋮」菜单里有「跳页」。
   - 帖子正文是 WebView，不能直接画进玻璃（会让页面一直重绘、闪烁），玻璃里用的是它被挡住那一小块的半分辨率截图；楼里的图片加载出来后，要下一次滑动玻璃里才更新。
-- **应用内更新**：启动时（每天最多一次）检查本仓库的最新 Release；「关于」页点版本号可以手动检查。
+- **应用内更新**：启动时（每天最多一次）检查本仓库的最新 Release；「关于」页点版本号或「检测更新」可以手动检查。有新版本时点「下载并安装」直接在应用里下载 APK 并调起系统安装（第一次需要在系统设置里允许本应用安装未知应用）。「关于」页的标题栏不再和状态栏重叠。
 - 补上上游漏提交的 `lib_base_ui_compose/.../compose3/theme/Color.kt`，否则编译不过。
 
 `master`、`master_release` 分支与上游保持一致，不在上面开发。
@@ -98,7 +98,7 @@
 - `.../sp/phone/view/FloorScrollBar.kt`（新）、`ArticleListFragment.java`：帖子页楼层滚动条
 - `.../gov/anzong/androidnga/activity/fragment/ForumWebFragment.kt`：网页模式的登录 cookie 和进度
 - `.../sp/phone/mvp/model/convert/ErrorConvertFactory.java`、`TopicConvertFactory.java`：错误提示与解析容错
-- `.../sp/phone/common/ForkUpdateChecker.kt`：应用内更新
+- `.../sp/phone/common/ForkUpdateChecker.kt`、`ForkUpdateDownloader.kt`（新）、`src/custom/AndroidManifest.xml`（新，安装权限）、`AboutActivity.java`：应用内更新
 - `.../gov/anzong/androidnga/activity/compose/ForkBoardSearch.kt`（新）、`SearchViewModel.kt`、`SearchActivity.kt`：板块搜索结果列表
 - `.../gov/anzong/androidnga/activity/compose/board/ForkBookmarkReorder.kt`（新）、`ForumBoardView.kt`、`ForumBoardViewModel.kt`：收藏拖动排序
 - `.../sp/phone/view/glass/`（新）：玻璃背景（`GlassDrawable`）、弹出菜单玻璃（`GlassPopupDrawable`）、帖子页和板块列表的安装逻辑（`ArticleGlass`）、设置（`GlassSettings`）；接入点在 `ArticleTabFragment.java`、`ArticleListFragment.java`、`TopicListFragment.java`、`SettingsFragment.java`、`FloorScrollBar.kt`
@@ -115,8 +115,8 @@ A personal fork of [Justwen/NGA-CLIENT-VER-OPEN-SOURCE](https://github.com/Justw
 - **Readable search errors**: NGA answers "no results" and similar with 4xx codes (HTTP 410 for an empty in-board search); the server's message is shown instead of "HTTP 410 Gone". Parsing tolerates `\xHH` escapes.
 - **Board search lists every match**: upstream jumped straight into the first result (and dropped the stid of collections). All matches are listed by relevance with their parent board; tap to open, tap the star to bookmark.
 - **Reorder bookmarked boards**: long-press a board under "我的收藏" and drag it.
-- **Glass**: the status bar and app bar of the home page, topic lists and threads are one pane of glass (a blur of the content behind, tinted with the original bar color, rounded bottom corners); content scrolls under it and the bar slides away while reading and floats back when scrolling up. Floating buttons, the pull-to-refresh circle, the floor bubble and all popup menus (24dp corners, opening below the bar) are glass too. Blur and opacity are adjustable under "设置 → 玻璃效果". The thread page drops its bottom page bar (swipe to change pages, "跳页" in the menu).
-- **In-app update check** against this repository's releases (at launch, at most daily; manual from the About page).
+- **Glass**: the status bar and app bar of the home page, topic lists and threads are one pane of glass (a blur of the content behind, tinted with the original bar color, rounded bottom corners); content scrolls under it and the bar slides away while reading and floats back when scrolling up. Floating buttons, the pull-to-refresh circle, the floor bubble and all popup menus (24dp corners, opening below the bar) are glass too. Blur and opacity are adjustable under "设置 → 玻璃效果". The thread page drops its bottom page bar (swipe to change pages, "跳页" in the menu); with the page bar at the top it is part of the glass and slides away with the app bar. The thread page opens without the floating button; it appears when scrolling up or changing pages.
+- **In-app update check** against this repository's releases (at launch, at most daily; manual from the About page); updates are downloaded and installed inside the app.
 - Restores `compose3/theme/Color.kt`, missing upstream.
 
 Package `gov.anzong.androidnga.custom`, installs beside the official app. Versions are the fork's own `vX.Y.Z` (X.Y in `.github/fork-version`, Z counted by the release workflow), versionCode `X × 10000000 + Y × 10000 + Z`. Releases are built by `tiger-release.yml` on every push to `custom`; `tiger-sync-upstream.yml` merges upstream `master_release` every 6 hours and releases when it builds, or opens an issue. Secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`, optional `SYNC_TOKEN`. Build locally with JDK 17.

@@ -59,6 +59,24 @@ public class ScrollAwareFamBehavior extends com.getbase.floatingactionbutton.Scr
         }).start();
     }
 
+    /**
+     * Fork：不带动画地收起（进帖子时先不显示悬浮按钮，往上滑或翻页后再出来）。
+     * 按钮还没布局、量不出高度，所以在第一次绘制前再挪下去。
+     */
+    public void hideNow(FloatingActionsMenu button) {
+        mIsShown = false;
+        button.getViewTreeObserver().addOnPreDrawListener(new android.view.ViewTreeObserver.OnPreDrawListener() {
+            @Override
+            public boolean onPreDraw() {
+                button.getViewTreeObserver().removeOnPreDrawListener(this);
+                if (!mIsShown && !mIsAnimationIn) {
+                    button.setTranslationY(button.getAddFloatingActionButton().getHeight() + button.getAddButtonMarginBottom());
+                }
+                return true;
+            }
+        });
+    }
+
     public void animateIn(FloatingActionsMenu button) {
         if (mIsAnimationIn || mIsShown) {
             return;

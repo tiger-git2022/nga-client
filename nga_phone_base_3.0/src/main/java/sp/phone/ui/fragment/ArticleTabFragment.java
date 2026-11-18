@@ -115,8 +115,9 @@ public class ArticleTabFragment extends BaseRxFragment {
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         ButterKnife.bind(this, view);
         updateFloatingMenu();
-        // Fork: 玻璃标题栏和页码栏（原型）
+        // Fork: 玻璃状态栏、标题栏（页码在顶部时也在玻璃里）；进帖子时先不显示悬浮按钮，往上滑或翻页后再出来
         sp.phone.view.glass.ArticleGlass.install(requireActivity(), view);
+        mBehavior.hideNow(mFam);
         mPagerAdapter = new ArticlePagerAdapter(getChildFragmentManager(), mRequestParam);
         ReadProgress progress = savedInstanceState == null ? getRestorableProgress() : null;
         if (progress != null) {

@@ -5,9 +5,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.danielstone.materialaboutlibrary.MaterialAboutActivity;
 import com.danielstone.materialaboutlibrary.items.MaterialAboutActionItem;
@@ -30,6 +34,43 @@ public class AboutActivity extends MaterialAboutActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         ThemeManager.getInstance().applyAboutTheme(this);
         super.onCreate(savedInstanceState);
+        applyWindowInsets();
+    }
+
+    /**
+     * Fork：targetSdk 35 起页面强制铺到状态栏下面，这个页面（第三方库的布局）没有处理，标题栏和状态栏重叠了。
+     * 标题栏顶部留出状态栏的高度（顶栏底色一直延伸到状态栏），列表底部留出导航条的高度。
+     */
+    private void applyWindowInsets() {
+        View appBar = findViewById(com.danielstone.materialaboutlibrary.R.id.mal_appbarlayout);
+        View list = findViewById(com.danielstone.materialaboutlibrary.R.id.mal_recyclerview);
+        if (appBar == null || list == null) {
+            return;
+        }
+        int listBottom = list.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(appBar, (v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            v.setPadding(bars.left, bars.top, bars.right, 0);
+            return insets;
+        });
+        ViewCompat.setOnApplyWindowInsetsListener(list, (v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            v.setPadding(bars.left, v.getPaddingTop(), bars.right, listBottom + bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(appBar);
+    }
+
+    /** Fork：自用版检查本仓库的新版本（可在应用里下载安装），其他构建打开上游的 Releases 页 */
+    private void checkUpdate() {
+        if (sp.phone.common.ForkUpdateChecker.isEnabled()) {
+            sp.phone.common.ForkUpdateChecker.check(AboutActivity.this, true);
+            return;
+        }
+        ARouterUtils.build(ARouterConstants.ACTIVITY_FRAGMENT_TEMPLATE)
+                .withString("url", "https://github.com/Justwen/NGA-CLIENT-VER-OPEN-SOURCE/releases")
+                .withString("fragment", WebViewFragment.class.getName())
+                .navigation(this);
     }
 
     @NonNull
@@ -55,7 +96,7 @@ public class AboutActivity extends MaterialAboutActivity {
                 .setOnClickAction(() -> {
                     // Fork：自用版点版本号检查更新
                     if (sp.phone.common.ForkUpdateChecker.isEnabled()) {
-                        sp.phone.common.ForkUpdateChecker.check(AboutActivity.this, true);
+                        checkUpdate();
                         return;
                     }
                     try {
@@ -83,13 +124,7 @@ public class AboutActivity extends MaterialAboutActivity {
 
         builder.addItem(new MaterialAboutActionItem.Builder()
                 .text("检测更新")
-                .setOnClickAction(() -> {
-                    ARouterUtils.build(ARouterConstants.ACTIVITY_FRAGMENT_TEMPLATE)
-                            .withString("url", "https://github.com/Justwen/NGA-CLIENT-VER-OPEN-SOURCE/releases")
-                            .withString("fragment", WebViewFragment.class.getName())
-                            .navigation(this);
-
-                })
+                .setOnClickAction(this::checkUpdate)
                 .icon(R.drawable.ic_update_24dp)
                 .build());
 
