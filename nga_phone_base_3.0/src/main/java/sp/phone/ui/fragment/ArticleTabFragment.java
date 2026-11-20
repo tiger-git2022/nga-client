@@ -132,14 +132,6 @@ public class ArticleTabFragment extends BaseRxFragment {
         if (progress != null) {
             mViewPager.setCurrentItem(progress.getPage() - 1, false);
         }
-        mViewPager.addOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
-            @Override
-            public void onPageSelected(int position) {
-                mBehavior.animateIn(mFam);
-                super.onPageSelected(position);
-            }
-        });
-
         if (progress != null) {
             int count = mPagerAdapter.getCount();
             mTabLayout.setTabOnScreenLimit(count <= 5 ? count : 0);

@@ -151,7 +151,7 @@ fun ForkGlassHome(topAppBarData: TopAppBarData, viewModel: ForumBoardViewModel) 
                             Icon(
                                 imageVector = Icons.Filled.Menu,
                                 tint = Color.White,
-                                contentDescription = null
+                                contentDescription = "打开侧边菜单"
                             )
                         }
                     },

@@ -2,4 +2,5 @@
 <resources>
     <!-- Fork：玻璃标题栏的状态，挂在 Activity 的 decorView 上 -->
     <item name="fork_glass_state" type="id" />
+    <item name="fork_glass_exclude_from_snapshot" type="id" />
 </resources>

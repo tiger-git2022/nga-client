@@ -9,6 +9,8 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.util.TypedValue
 import android.view.MotionEvent
+import android.view.RoundedCorner
+import android.view.WindowInsets
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -104,10 +106,9 @@ class FloorScrollBar private constructor(
     private fun sp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
 
     private val touchWidth = dp(48f)
-    private val thumbWidth = dp(5f)
-    private val thumbWidthDragging = dp(8f)
     private val thumbHeight = dp(40f)
-    private val edgeMargin = dp(3f)
+    private val trackWidth = dp(5f)
+    private val edgeMargin = dp(7f)
     private val verticalMargin = dp(8f)
 
     private val accent = context.getColor(R.color.read_progress_color)
@@ -202,31 +203,23 @@ class FloorScrollBar private constructor(
     // 列表上下的内边距（玻璃标题栏、页码栏盖住的部分）不放滚动条；
     // 下面还要躲开屏幕底部的圆角和导航条（手势条），否则滑块到底时被圆角挡住、按到时变成回桌面手势
     private val trackTop get() = verticalMargin + recyclerView.paddingTop
-    private val trackBottom get() = height - maxOf(verticalMargin + recyclerView.paddingBottom, bottomSafeMargin())
-
     private val windowLocation = IntArray(2)
 
-    /** 本 View 底边到「滑块整个落在屏幕可见区域里、且在导航条上面」的最低位置的距离 */
-    private fun bottomSafeMargin(): Float {
-        val insets = rootWindowInsets ?: return verticalMargin
-        getLocationInWindow(windowLocation)
-        val windowBottom = rootView.height
-        val viewBottom = windowLocation[1] + height
-        var limit = (windowBottom - insets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom).toFloat()
-        val corner = insets.getRoundedCorner(android.view.RoundedCorner.POSITION_BOTTOM_RIGHT)
-        if (corner != null && corner.radius > 0) {
-            // 滑块最右边（拖动时变宽）离屏幕右边的距离；在圆角的圆里面能到的最低点
-            val r = corner.radius.toFloat()
-            val x = (windowLocation[0] + width - edgeMargin - thumbWidthDragging / 2).toFloat()
-            val dx = x - corner.center.x
-            if (dx > 0) {
-                val dy = if (dx >= r) 0f else Math.sqrt((r * r - dx * dx).toDouble()).toFloat()
-                // 滑块两头是半圆，再收一点让圆头也完整露出来
-                limit = minOf(limit, corner.center.y + dy - thumbWidthDragging / 2)
-            }
+    private val trackBottom: Float
+        get() {
+            val insets = rootWindowInsets
+            val corner = insets?.getRoundedCorner(RoundedCorner.POSITION_BOTTOM_RIGHT)
+            val systemBottom = insets?.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())?.bottom ?: 0
+            getLocationInWindow(windowLocation)
+            val cornerBottom = corner?.center?.y?.minus(windowLocation[1])?.toFloat() ?: height.toFloat()
+            rootView.getLocationInWindow(windowLocation)
+            val safeWindowBottom = windowLocation[1] + rootView.height - systemBottom
+            getLocationInWindow(windowLocation)
+            val safeBottom = minOf(height - recyclerView.paddingBottom.toFloat(), cornerBottom,
+                (safeWindowBottom - windowLocation[1]).toFloat())
+            return safeBottom - verticalMargin
         }
-        return (viewBottom - limit).coerceAtLeast(0f) + verticalMargin
-    }
+    private val thumbRadius get() = minOf(thumbHeight / 2, (trackBottom - trackTop).coerceAtLeast(0f) / 2)
 
     /**
      * 当前滚动位置对应的 0..1，按楼数算而不是按像素：
@@ -255,14 +248,16 @@ class FloorScrollBar private constructor(
 
     private fun thumbCenterY(): Float {
         if (dragging) return dragY
-        val travel = trackBottom - trackTop - thumbHeight
-        return trackTop + thumbHeight / 2 + travel * scrollFraction()
+        val radius = thumbRadius
+        val travel = (trackBottom - trackTop - radius * 2).coerceAtLeast(0f)
+        return trackTop + radius + travel * scrollFraction()
     }
 
     private fun fractionForY(y: Float): Float {
-        val travel = trackBottom - trackTop - thumbHeight
+        val radius = thumbRadius
+        val travel = trackBottom - trackTop - radius * 2
         if (travel <= 0) return 0f
-        return ((y - trackTop - thumbHeight / 2) / travel).coerceIn(0f, 1f)
+        return ((y - trackTop - radius) / travel).coerceIn(0f, 1f)
     }
 
     private fun positionForFraction(fraction: Float): Int {
@@ -287,20 +282,18 @@ class FloorScrollBar private constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (alpha <= 0f || height <= 0) return
+        if (alpha <= 0f || trackBottom <= trackTop) return
         val right = width - edgeMargin
-        val w = if (dragging) thumbWidthDragging else thumbWidth
-        // 轨道和滑块一样宽、竖直中线对齐（原来轨道比滑块窄、两者靠右对齐，滑块在左边凸出来一块）
-        val centerX = right - thumbWidthDragging / 2
 
         // 轨道
-        rect.set(centerX - w / 2, trackTop, centerX + w / 2, trackBottom)
-        canvas.drawRoundRect(rect, w / 2, w / 2, trackPaint)
+        rect.set(right - trackWidth, trackTop, right, trackBottom)
+        canvas.drawRoundRect(rect, trackWidth / 2, trackWidth / 2, trackPaint)
 
         // 滑块
         val centerY = thumbCenterY()
-        rect.set(centerX - w / 2, centerY - thumbHeight / 2, centerX + w / 2, centerY + thumbHeight / 2)
-        canvas.drawRoundRect(rect, w / 2, w / 2, thumbPaint)
+        val radius = thumbRadius
+        rect.set(right - trackWidth, centerY - radius, right, centerY + radius)
+        canvas.drawRoundRect(rect, trackWidth / 2, trackWidth / 2, thumbPaint)
 
         // 气泡：只在按住滑块拖动时显示（平时滑动浏览只有一根滚动条）
         val position = if (dragging) positionForFraction(fractionForY(dragY)) else -1
@@ -321,7 +314,7 @@ class FloorScrollBar private constructor(
         val textH = textPaint.fontMetrics.let { it.descent - it.ascent }
         val bw = currentW + totalW + padH * 2
         val bh = textH + padV * 2
-        val bRight = right - thumbWidthDragging - dp(6f)
+        val bRight = right - trackWidth - dp(6f)
         val bTop = (centerY - bh / 2).coerceIn(0f, (height - bh).coerceAtLeast(0f))
         rect.set(bRight - bw, bTop, bRight, bTop + bh)
         bubbleRect.set(rect)
@@ -426,7 +419,7 @@ class FloorScrollBar private constructor(
     }
 
     private fun dragTo(y: Float) {
-        dragY = y.coerceIn(trackTop + thumbHeight / 2, trackBottom - thumbHeight / 2)
+        dragY = y.coerceIn(trackTop + thumbRadius, trackBottom - thumbRadius)
         scrollToFraction(fractionForY(dragY))
         invalidate()
     }

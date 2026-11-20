@@ -103,7 +103,11 @@ public class TopicListFragment extends TopicSearchFragment {
     @Override
     public void scrollTo(int position) {
         if (position == 0) {
-            mAppBarLayout.setExpanded(true, true);
+            if (sp.phone.view.glass.ArticleGlass.isInstalled(getActivity())) {
+                sp.phone.view.glass.ArticleGlass.revealHeader(getActivity());
+            } else {
+                mAppBarLayout.setExpanded(true, true);
+            }
         }
         super.scrollTo(position);
     }

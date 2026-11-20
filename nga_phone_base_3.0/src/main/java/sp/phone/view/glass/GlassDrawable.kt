@@ -20,6 +20,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.webkit.WebView
+import gov.anzong.androidnga.R
 import androidx.annotation.ColorInt
 import androidx.core.graphics.ColorUtils
 
@@ -195,7 +196,8 @@ class GlassDrawable(
      * 调用时 canvas 的原点是 v 的内容坐标原点（和 View.draw 时一样），[area] 是 host 在 v 内容坐标里的范围。
      */
     private fun drawTree(v: View, canvas: Canvas, area: RectF) {
-        if (v.visibility != View.VISIBLE || v.alpha <= 0f) return
+        if (v.visibility != View.VISIBLE || v.alpha <= 0f ||
+            v.getTag(R.id.fork_glass_exclude_from_snapshot) == true) return
         val left = v.scrollX.toFloat()
         val top = v.scrollY.toFloat()
         if (!RectF.intersects(area, RectF(left, top, left + v.width, top + v.height))) return

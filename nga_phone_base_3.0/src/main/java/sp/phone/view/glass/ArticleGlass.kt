@@ -213,6 +213,11 @@ object ArticleGlass {
     @JvmStatic
     fun isInstalled(activity: Activity?): Boolean = stateOf(activity) != null
 
+    @JvmStatic
+    fun revealHeader(activity: Activity?) {
+        stateOf(activity)?.followVisibleList()
+    }
+
     /**
      * 通用部分：[content] 铺满 [coordinator]（含 [bottomBar] 下面），状态栏、标题栏、[bottomBar]、悬浮按钮换成玻璃，
      * 悬浮按钮在 [overlayParent] 里找。
@@ -330,7 +335,9 @@ object ArticleGlass {
 
         // 下拉刷新的转圈按钮也换成玻璃圆（染顶栏色，箭头用顶栏文字色）
         refresh?.let { srl ->
+            srl.setOnChildScrollUpCallback { _, _ -> recyclerView.canScrollVertically(-1) }
             (0 until srl.childCount).map { srl.getChildAt(it) }.firstOrNull { it is ImageView }?.let { circle ->
+                circle.setTag(R.id.fork_glass_exclude_from_snapshot, true)
                 circle.background = GlassDrawable(circle, recyclerView, state.tintColor, state.backdrop, oval = true)
                 circle.elevation = 0f
             }
@@ -339,7 +346,9 @@ object ArticleGlass {
 
         val remove = state.observe { top, bottom ->
             recyclerView.setPadding(recyclerView.paddingLeft, baseTop + top, recyclerView.paddingRight, baseBottom + bottom)
-            refresh?.setProgressViewOffset(false, top - (40 * density).toInt(), top + (64 * density).toInt())
+            if (refresh != null && !refresh.isRefreshing) {
+                refresh.setProgressViewOffset(true, top - refresh.progressCircleDiameter, top + (64 * density).toInt())
+            }
         }
         // 标题栏跟着当前页列表的内容移动（包括拖楼层滚动条、恢复阅读位置这类直接跳转）
         state.register(recyclerView)
@@ -384,6 +393,9 @@ object ArticleGlass {
             gravity = Gravity.TOP or Gravity.START
         })
         fab.viewTreeObserver.addOnPreDrawListener {
+            val visible = fab.isShown && fab.alpha > 0f && fam.alpha > 0f
+            glass.visibility = if (visible) View.VISIBLE else View.INVISIBLE
+            if (!visible) return@addOnPreDrawListener true
             val lp = glass.layoutParams
             if (lp.width != fab.width || lp.height != fab.height) {
                 lp.width = fab.width
@@ -395,7 +407,6 @@ object ArticleGlass {
             glass.scaleX = fab.scaleX * fam.scaleX
             glass.scaleY = fab.scaleY * fam.scaleY
             glass.alpha = fab.alpha * fam.alpha
-            glass.visibility = if (fab.visibility == View.VISIBLE && fam.visibility == View.VISIBLE) View.VISIBLE else View.INVISIBLE
             true
         }
     }
