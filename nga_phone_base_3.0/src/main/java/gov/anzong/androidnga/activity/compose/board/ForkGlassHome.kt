@@ -27,7 +27,7 @@ import androidx.compose.material.Tab
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -146,11 +146,12 @@ fun ForkGlassHome(topAppBarData: TopAppBarData, viewModel: ForumBoardViewModel) 
                     title = { Text(text = topAppBarData.title, color = Color.White) },
                     windowInsets = WindowInsets.statusBars,
                     navigationIcon = {
+                        // 左上角打开侧边栏，用菜单图标（原来是返回箭头）
                         IconButton(onClick = { topAppBarData.navigationIconAction?.invoke() }) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                imageVector = Icons.Filled.Menu,
                                 tint = Color.White,
-                                contentDescription = null
+                                contentDescription = "打开侧边菜单"
                             )
                         }
                     },

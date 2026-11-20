@@ -51,7 +51,7 @@ object GlassStyle {
 }
 
 /**
- * Fork：帖子页的玻璃标题栏和底部页码栏（原型，只支持页码栏在底部的布局）。
+ * Fork：帖子页、板块帖子列表的玻璃状态栏和标题栏（帖子页的页码栏在顶部时，页码也在这块玻璃里）。
  *
  * 帖子内容铺到标题栏和页码栏下面，两条栏的背景是下面内容的模糊加半透明染色（[GlassDrawable]）。
  * 标题栏往下读时收起、往上滑时浮出来盖在内容上（玻璃后面能看到内容），由当前页列表的滚动驱动（[State.follow]），
@@ -159,12 +159,17 @@ object ArticleGlass {
         val appBar = root.findViewById<AppBarLayout>(R.id.appbar) ?: return
         val container = root.findViewById<View>(R.id.container) ?: return
         val tabs = root.findViewById<View>(R.id.tabs) ?: return
-        // 页码栏在顶部的布局里 tabs 在 AppBarLayout 里面，原型先不处理
-        if (tabs.parent !== root) return
-        // 底部页码栏去掉不显示（左右滑动翻页，「⋮」菜单里有「跳页」）；它原来占的底部位置也收回来
-        tabs.visibility = View.GONE
-        (coordinator.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin = 0
-        coordinator.requestLayout()
+        val topTabs = tabs.parent === appBar
+        if (topTabs) {
+            // 页码栏在顶部（fragment_article_tab）：页码在 AppBarLayout 里，和标题栏一起是一块玻璃，往下读时一起滑走
+            tabs.background = null
+            clipBottomCorners(appBar)
+        } else {
+            // 底部页码栏去掉不显示（左右滑动翻页，「⋮」菜单里有「跳页」）；它原来占的底部位置也收回来
+            tabs.visibility = View.GONE
+            (coordinator.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin = 0
+            coordinator.requestLayout()
+        }
         val state = installPage(activity, root as ViewGroup, coordinator, appBar, container, null)
         // 翻页停下后，标题栏完整显示
         root.findViewById<ViewPager>(R.id.pager)?.addOnPageChangeListener(object : ViewPager.SimpleOnPageChangeListener() {
@@ -189,9 +194,29 @@ object ArticleGlass {
         installPage(activity, coordinator, coordinator, appBar, content, null)
     }
 
+    /**
+     * 按标题栏下沿的圆角裁剪 [view] 的内容（页码栏的选中下划线伸到两头时不会露出圆角外）。
+     * 圆角矩形的上沿放到 view 上面一个圆角的位置，只有下面两个角是圆的。
+     */
+    private fun clipBottomCorners(view: View) {
+        val r = GlassStyle.BAR_CORNER_DP * view.resources.displayMetrics.density
+        view.outlineProvider = object : android.view.ViewOutlineProvider() {
+            override fun getOutline(v: View, outline: android.graphics.Outline) {
+                outline.setRoundRect(0, -r.toInt(), v.width, v.height, r)
+                outline.alpha = 0f
+            }
+        }
+        view.clipToOutline = true
+    }
+
     /** 这个页面是否装了玻璃（装了就不要再改标题栏的 scrollFlags） */
     @JvmStatic
     fun isInstalled(activity: Activity?): Boolean = stateOf(activity) != null
+
+    @JvmStatic
+    fun revealHeader(activity: Activity?) {
+        stateOf(activity)?.followVisibleList()
+    }
 
     /**
      * 通用部分：[content] 铺满 [coordinator]（含 [bottomBar] 下面），状态栏、标题栏、[bottomBar]、悬浮按钮换成玻璃，
@@ -310,7 +335,9 @@ object ArticleGlass {
 
         // 下拉刷新的转圈按钮也换成玻璃圆（染顶栏色，箭头用顶栏文字色）
         refresh?.let { srl ->
+            srl.setOnChildScrollUpCallback { _, _ -> recyclerView.canScrollVertically(-1) }
             (0 until srl.childCount).map { srl.getChildAt(it) }.firstOrNull { it is ImageView }?.let { circle ->
+                circle.setTag(R.id.fork_glass_exclude_from_snapshot, true)
                 circle.background = GlassDrawable(circle, recyclerView, state.tintColor, state.backdrop, oval = true)
                 circle.elevation = 0f
             }
@@ -319,7 +346,9 @@ object ArticleGlass {
 
         val remove = state.observe { top, bottom ->
             recyclerView.setPadding(recyclerView.paddingLeft, baseTop + top, recyclerView.paddingRight, baseBottom + bottom)
-            refresh?.setProgressViewOffset(false, top - (40 * density).toInt(), top + (64 * density).toInt())
+            if (refresh != null && !refresh.isRefreshing) {
+                refresh.setProgressViewOffset(true, top - refresh.progressCircleDiameter, top + (64 * density).toInt())
+            }
         }
         // 标题栏跟着当前页列表的内容移动（包括拖楼层滚动条、恢复阅读位置这类直接跳转）
         state.register(recyclerView)
@@ -364,6 +393,9 @@ object ArticleGlass {
             gravity = Gravity.TOP or Gravity.START
         })
         fab.viewTreeObserver.addOnPreDrawListener {
+            val visible = fab.isShown && fab.alpha > 0f && fam.alpha > 0f
+            glass.visibility = if (visible) View.VISIBLE else View.INVISIBLE
+            if (!visible) return@addOnPreDrawListener true
             val lp = glass.layoutParams
             if (lp.width != fab.width || lp.height != fab.height) {
                 lp.width = fab.width
@@ -375,7 +407,6 @@ object ArticleGlass {
             glass.scaleX = fab.scaleX * fam.scaleX
             glass.scaleY = fab.scaleY * fam.scaleY
             glass.alpha = fab.alpha * fam.alpha
-            glass.visibility = if (fab.visibility == View.VISIBLE && fam.visibility == View.VISIBLE) View.VISIBLE else View.INVISIBLE
             true
         }
     }
