@@ -41,6 +41,12 @@ class FloorScrollBar private constructor(
 
         /** 全帖最后一楼的楼层号，未知时返回 -1 */
         fun lastFloor(): Int
+
+        /** 开始按住滑块拖动时调用 */
+        fun onDragStart()
+
+        /** 松开滑块并完成定位后调用 */
+        fun onDragEnd()
     }
 
     companion object {
@@ -108,7 +114,7 @@ class FloorScrollBar private constructor(
     private val touchWidth = dp(48f)
     private val thumbHeight = dp(40f)
     private val trackWidth = dp(5f)
-    private val edgeMargin = dp(7f)
+    private val edgeMargin = dp(2f)
     private val verticalMargin = dp(8f)
 
     private val accent = context.getColor(R.color.read_progress_color)
@@ -219,6 +225,17 @@ class FloorScrollBar private constructor(
                 (safeWindowBottom - windowLocation[1]).toFloat())
             return safeBottom - verticalMargin
         }
+    private val safeRight: Float
+        get() {
+            val insets = rootWindowInsets
+            val systemRight = insets?.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())?.right ?: 0
+            getLocationInWindow(windowLocation)
+            val myRight = windowLocation[0] + width
+            rootView.getLocationInWindow(windowLocation)
+            val safeWindowRight = windowLocation[0] + rootView.width - systemRight
+            return (myRight - safeWindowRight).coerceAtLeast(0).toFloat()
+        }
+
     private val thumbRadius get() = minOf(thumbHeight / 2, (trackBottom - trackTop).coerceAtLeast(0f) / 2)
 
     /**
@@ -283,7 +300,7 @@ class FloorScrollBar private constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (alpha <= 0f || trackBottom <= trackTop) return
-        val right = width - edgeMargin
+        val right = width - safeRight - edgeMargin
 
         // 轨道
         rect.set(right - trackWidth, trackTop, right, trackBottom)
@@ -300,6 +317,7 @@ class FloorScrollBar private constructor(
         val floor = if (position >= 0) source.floorAt(position) else -1
         if (floor < 0) {
             bubbleRect.setEmpty()
+            if (shown) updateGestureExclusion(centerY)
             return
         }
         // 一行紧凑显示：「12/33」，主楼显示「主楼/33」
@@ -335,7 +353,7 @@ class FloorScrollBar private constructor(
                     return false
                 }
                 val centerY = thumbCenterY()
-                val onThumb = event.x >= width - touchWidth && Math.abs(event.y - centerY) <= thumbHeight
+                val onThumb = event.x >= width - safeRight - touchWidth && Math.abs(event.y - centerY) <= thumbHeight
                 val slop = dp(8f)
                 val onBubble = event.x >= bubbleRect.left - slop && event.x <= bubbleRect.right + slop &&
                         event.y >= bubbleRect.top - slop && event.y <= bubbleRect.bottom + slop
@@ -349,6 +367,7 @@ class FloorScrollBar private constructor(
                 alpha = 1f
                 translationX = 0f
                 dragging = true
+                source.onDragStart()
                 grabOffset = event.y - centerY
                 dragY = centerY
                 parent?.requestDisallowInterceptTouchEvent(true)
@@ -370,8 +389,11 @@ class FloorScrollBar private constructor(
                     parent?.requestDisallowInterceptTouchEvent(false)
                     invalidate()
                     scheduleHide()
-                    // 拖动是直接跳位置，不会带动标题栏；松手后按是否回到顶部同步一下
-                    recyclerView.post { syncAppBar() }
+                    // 拖动是直接跳位置，不会带动标题栏；松手后按是否回到顶部同步一下并记录阅读进度
+                    recyclerView.post {
+                        syncAppBar()
+                        source.onDragEnd()
+                    }
                     return true
                 }
             }
@@ -387,9 +409,10 @@ class FloorScrollBar private constructor(
      * 显示时把滑块和气泡那一小块从返回手势里排除（系统限制每边总高 200dp，这里不到 80dp），隐藏后还给系统。
      */
     private fun updateGestureExclusion(centerY: Float) {
-        val left = minOf(bubbleRect.left, width - touchWidth).toInt()
+        val touchLeft = width - safeRight - touchWidth
+        val left = (if (bubbleRect.isEmpty) touchLeft else minOf(bubbleRect.left, touchLeft)).toInt().coerceAtLeast(0)
         val half = (thumbHeight / 2 + dp(8f)).toInt()
-        exclusionRect.set(left, (centerY - half).toInt(), width, (centerY + half).toInt())
+        exclusionRect.set(left, (centerY - half).toInt().coerceAtLeast(0), width, (centerY + half).toInt().coerceAtMost(height))
         ViewCompat.setSystemGestureExclusionRects(this, listOf(exclusionRect))
         exclusionActive = true
     }

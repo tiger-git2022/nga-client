@@ -157,7 +157,7 @@ public class ArticleTabFragment extends BaseRxFragment {
             return null;
         }
         ReadProgress progress = ReadProgressManager.get(mRequestParam.tid);
-        if (progress == null || (progress.getPage() <= 1 && progress.getIndex() == 0 && progress.getOffset() >= 0)) {
+        if (progress == null || (progress.getPage() <= 1 && progress.getIndex() <= 0)) {
             return null;
         }
         return progress;
