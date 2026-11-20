@@ -3,7 +3,7 @@
 
 
     <!-- Fork: 标题栏三个点菜单改成玻璃（原 parent 为 ThemeOverlay.AppCompat.Dark），见 fork_styles.xml -->
-    <style name="AppTheme.PopupOverlay" parent="Fork.ThemeOverlay.GlassPopup"/> >
+    <style name="AppTheme.PopupOverlay" parent="Fork.ThemeOverlay.GlassPopup"/>
 
 
 </resources>

@@ -141,6 +141,11 @@ object ArticleGlass {
             return { listeners.remove(listener) }
         }
 
+        internal fun visibleTop(paddingTop: Int): Int {
+            val covered = (appBar.height + appBar.translationY).toInt()
+            return covered.coerceIn(0, paddingTop)
+        }
+
         internal fun update(top: Int, bottom: Int) {
             if (top == this.top && bottom == this.bottom) return
             this.top = top
@@ -216,6 +221,13 @@ object ArticleGlass {
     @JvmStatic
     fun revealHeader(activity: Activity?) {
         stateOf(activity)?.followVisibleList()
+    }
+
+    /** 列表当前没被玻璃顶栏盖住的顶部位置（像素，相对列表顶部）：顶栏完整展开时是 paddingTop，收起时是 0 */
+    @JvmStatic
+    fun visibleTop(activity: Activity?, recyclerView: RecyclerView): Int {
+        val state = stateOf(activity) ?: return recyclerView.paddingTop
+        return state.visibleTop(recyclerView.paddingTop)
     }
 
     /**

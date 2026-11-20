@@ -18,8 +18,8 @@
         <item name="android:popupElevation">0dp</item>
         <item name="overlapAnchor">false</item>
         <item name="android:overlapAnchor">false</item>
-        <!-- 明确指定偏移：不设时会按背景内边距往上挪，盖住标题栏下沿一截 -->
-        <item name="android:dropDownVerticalOffset">4dp</item>
+        <!-- Toolbar 按钮默认顶对齐（48dp 在 56dp 顶栏里下沿差 8dp），再留 4dp 间距共 12dp，不盖住顶栏 -->
+        <item name="android:dropDownVerticalOffset">12dp</item>
     </style>
 
     <!-- androidx.appcompat.widget.PopupMenu -->
