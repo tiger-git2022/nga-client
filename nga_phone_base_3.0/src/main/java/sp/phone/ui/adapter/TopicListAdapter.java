@@ -98,7 +98,7 @@ public class TopicListAdapter extends BaseAppendableAdapter<ThreadPageInfo, Topi
     }
 
     /**
-     * Fork: 回复数后面跟上次阅读之后新增的楼数，如「31（+6）」；没有阅读记录就只显示回复数。
+     * Fork: 回复数后面跟上次读到的楼层之后剩余的未读回复数，如「31（+6）」；没有阅读记录就只显示回复数。
      */
     private void bindRepliesWithProgress(TopicViewHolder holder, ThreadPageInfo entry) {
         String replies = String.valueOf(entry.getReplies());
