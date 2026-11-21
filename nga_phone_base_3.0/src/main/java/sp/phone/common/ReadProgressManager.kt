@@ -27,8 +27,12 @@ data class ReadProgress(
     val subject: String?,
     val updateTime: Long,
 ) {
-    /** 根据列表里的回复数算出上次阅读之后新增的楼数 */
-    fun newReplies(replies: Int): Int = (replies + 1 - rows).coerceAtLeast(0)
+    /** 根据列表里的回复数和上次离开时读到的楼层，算出还有多少未读回复 */
+    fun newReplies(replies: Int): Int {
+        // 帖子中间若有删楼，最后一楼的楼层号可能大于 rows - 1；封顶到 rows - 1，保证看到末楼时为 0、后续新回复仍能累加
+        val read = if (rows > 0) minOf(readFloor, rows - 1) else readFloor
+        return (replies - read).coerceAtLeast(0)
+    }
 }
 
 object ReadProgressManager {

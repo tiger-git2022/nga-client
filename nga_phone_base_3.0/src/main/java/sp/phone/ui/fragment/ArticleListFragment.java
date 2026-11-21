@@ -477,7 +477,8 @@ public class ArticleListFragment extends BaseMvpFragment<ArticleListPresenter> i
      */
     private void saveReadProgress(boolean measure) {
         if (!mActive || !isProgressTrackable() || mListView == null || mThreadInfo == null
-                || mThreadInfo.postInfoList.isEmpty()) {
+                || mThreadInfo.postInfoList.isEmpty()
+                || (mLoadingView != null && mLoadingView.getVisibility() == View.VISIBLE)) {
             return;
         }
         ArticleShareViewModel viewModel = getActivityViewModelProvider().get(ArticleShareViewModel.class);
