@@ -77,17 +77,17 @@ class MessageListParser {
 }
 
 private data class MessageListBean(
-    val all_user: String = "",
-    val bit: Int = 0,
-    val from: Int = 0,
-    val from_user_bit: Int = 0,
-    val from_username: String = "",
-    val last_from: Int = 0,
-    val last_from_username: String = "",
-    val last_modify: String = "",
-    val mid: String = "",
-    val posts: Int = 0,
-    val sbit: Int = 0,
-    val subject: String = "",
-    val time: String = ""
+    var all_user: String = "",
+    var bit: Int = 0,
+    var from: Int = 0,
+    var from_user_bit: Int = 0,
+    var from_username: String = "",
+    var last_from: Int = 0,
+    var last_from_username: String = "",
+    var last_modify: String = "",
+    var mid: String = "",
+    var posts: Int = 0,
+    var sbit: Int = 0,
+    var subject: String = "",
+    var time: String = ""
 ) : JavaBean

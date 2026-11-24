@@ -4,45 +4,45 @@ import gov.anzong.androidnga.common.base.JavaBean
 
 data class ThreadPageBean(
     @JvmField
-    val author: String?,
+    var author: String?,
     @JvmField
-    val authorid: Int,
+    var authorid: Int,
     @JvmField
-    val digest: Int,
+    var digest: Int,
     @JvmField
-    val fid: Int,
+    var fid: Int,
     @JvmField
-    val jdata: String?,
+    var jdata: String?,
     @JvmField
-    val lastmodify: Int,
+    var lastmodify: Int,
     @JvmField
-    val lastpost: Int,
+    var lastpost: Int,
     @JvmField
-    val lastposter: String?,
+    var lastposter: String?,
     @JvmField
-    val locked: Int,
+    var locked: Int,
     @JvmField
-    val post_misc_var: String?,
+    var post_misc_var: String?,
     @JvmField
-    val postdate: Int,
+    var postdate: Int,
     @JvmField
-    val quote_from: Int,
+    var quote_from: Int,
     @JvmField
-    val quote_to: String?,
+    var quote_to: String?,
     @JvmField
-    val recommend: Int,
+    var recommend: Int,
     @JvmField
-    val replies: Int,
+    var replies: Int,
     @JvmField
-    val subject: String?,
+    var subject: String?,
     @JvmField
-    val this_visit_rows: Int,
+    var this_visit_rows: Int,
     @JvmField
-    val tid: Int,
+    var tid: Int,
     @JvmField
-    val topic_misc: String?,
+    var topic_misc: String?,
     @JvmField
-    val tpid: Int,
+    var tpid: Int,
     @JvmField
-    val type: Int
+    var type: Int
 ) : JavaBean

@@ -192,8 +192,8 @@ class ForumBoardModel {
             if (!it.forum_icon_pre.isNullOrEmpty()) {
                 PreferenceUtils.putData(PreferenceKey.BOARD_ICON_URL, it.forum_icon_pre)
             }
-            it.result?.forEach {
-                if (it.id == "other" || it.id == "wow" || it.id == "company") {
+            it.result?.forEach { it ->
+                if (it._id == "other" || it._id == "wow" || it._id == "company") {
                     it.groups?.forEach { it ->
                         val groupId = it.id
                         it.forums?.forEach { child ->
